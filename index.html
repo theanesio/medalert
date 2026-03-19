@@ -897,7 +897,7 @@ input[type=range]::-webkit-slider-thumb{
 ═══════════════════════════════════════════════════════════════════ */
 
 /* ── CONSTANTES ──────────────────────────────────────────────────── */
-const APP_VERSION  = '1.2.0';
+const APP_VERSION  = '1.3.0';
 const CORES = ['#E8F5EE','#EFF6FF','#FEF3C7','#F5F3FF','#FFF0F0','#F0FDF4','#FDF4FF','#FFF7ED'];
 const CORES_TEXT = ['#0F5235','#1D4ED8','#92400E','#5B21B6','#991B1B','#166534','#6B21A2','#9A3412'];
 const EMOJIS = ['💊','💉','🩺','🫀','🧠','👁️','🦷','🦴','🌡️','⭐','🍃','🔵'];
@@ -1783,14 +1783,38 @@ const App = (() => {
         </div>
       </div>
 
-      <div class="st">🗑️ Dados</div>
+      <div class="st">💾 Backup dos dados</div>
       <div class="cfg-sec">
-        <div class="cfg-row" onclick="App.exportarPDF()">
-          <div class="cfg-l"><span class="cfg-ic">📄</span><div><div class="cfg-h">Exportar histórico</div><div class="cfg-p">Baixar relatório em PDF</div></div></div>
+        <div class="cfg-row" onclick="App.fazerBackup()">
+          <div class="cfg-l"><span class="cfg-ic">⬆️</span><div>
+            <div class="cfg-h">Fazer backup agora</div>
+            <div class="cfg-p">Salva seus remédios em arquivo .json</div>
+          </div></div>
           <span class="cfg-v">›</span>
         </div>
+        <div class="cfg-row" onclick="App.abrirRestaurarBackup()">
+          <div class="cfg-l"><span class="cfg-ic">⬇️</span><div>
+            <div class="cfg-h">Restaurar backup</div>
+            <div class="cfg-p">Recupera remédios de um arquivo salvo</div>
+          </div></div>
+          <span class="cfg-v">›</span>
+        </div>
+        <div class="cfg-row" onclick="App.exportarPDF()">
+          <div class="cfg-l"><span class="cfg-ic">📄</span><div>
+            <div class="cfg-h">Exportar histórico em PDF</div>
+            <div class="cfg-p">Relatório para apresentar ao médico</div>
+          </div></div>
+          <span class="cfg-v">›</span>
+        </div>
+      </div>
+
+      <div class="st">🗑️ Dados</div>
+      <div class="cfg-sec">
         <div class="cfg-row" onclick="App.confirmarLimpar()">
-          <div class="cfg-l"><span class="cfg-ic">🗑️</span><div><div class="cfg-h" style="color:var(--vm)">Limpar todos os dados</div><div class="cfg-p">Remove todos os remédios e histórico</div></div></div>
+          <div class="cfg-l"><span class="cfg-ic">🗑️</span><div>
+            <div class="cfg-h" style="color:var(--vm)">Limpar todos os dados</div>
+            <div class="cfg-p">Remove todos os remédios e histórico</div>
+          </div></div>
           <span class="cfg-v">›</span>
         </div>
       </div>
@@ -2696,6 +2720,31 @@ Regras:
   }
 
   async function forcarAtualizacao() {
+    // PRIMEIRO: fazer backup automático dos dados antes de limpar cache
+    const meds = DB.medicamentos;
+    if (meds.length > 0) {
+      try {
+        const dados = {
+          versao: APP_VERSION,
+          data: new Date().toISOString(),
+          medicamentos: DB.medicamentos,
+          registros: DB.registros,
+          config: DB.config,
+        };
+        const json = JSON.stringify(dados, null, 2);
+        const blob = new Blob([json], { type: 'application/json' });
+        const url  = URL.createObjectURL(blob);
+        const dataStr = new Date().toLocaleDateString('pt-BR').replace(/\//g,'-');
+        const a = document.createElement('a');
+        a.href = url; a.download = `MedAlert_backup_${dataStr}.json`;
+        document.body.appendChild(a); a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        console.log('[Update] Backup automático feito:', meds.length, 'remédios');
+      } catch(err) {
+        console.warn('[Update] Backup automático falhou:', err);
+      }
+    }
     const el = document.getElementById('updateStatus');
     const btn = document.getElementById('btnForcarUpdate');
     if (el) { el.innerHTML = '⏳ Baixando atualização...'; el.style.background = 'var(--az2)'; }
@@ -2770,6 +2819,134 @@ Regras:
   }
 
   /* ── EXPORTAR PDF ────────────────────────────────────────────── */
+  /* ── BACKUP E RESTAURAÇÃO ───────────────────────────────────── */
+  function fazerBackup() {
+    const dados = {
+      versao:       APP_VERSION,
+      data:         new Date().toISOString(),
+      medicamentos: DB.medicamentos,
+      registros:    DB.registros,
+      config:       DB.config,
+    };
+    // Não incluir a chave API no backup por segurança
+
+    const json    = JSON.stringify(dados, null, 2);
+    const blob    = new Blob([json], { type: 'application/json' });
+    const url     = URL.createObjectURL(blob);
+    const dataStr = new Date().toLocaleDateString('pt-BR').replace(/\//g,'-');
+    const a       = document.createElement('a');
+    a.href        = url;
+    a.download    = `MedAlert_backup_${dataStr}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast('✅ Backup salvo! Guarde o arquivo em local seguro.');
+  }
+
+  function abrirRestaurarBackup() {
+    abrirModal(`
+      <div class="modal-title">📥 Restaurar Backup</div>
+      <div style="background:var(--az2);border-radius:13px;padding:14px 16px;margin-bottom:16px">
+        <div style="font-size:14px;font-weight:700;color:#1D4ED8;line-height:1.6">
+          ℹ️ Selecione o arquivo <strong>.json</strong> do backup para restaurar seus remédios e histórico.
+        </div>
+      </div>
+      <div style="background:var(--am2);border-radius:13px;padding:12px 14px;margin-bottom:16px">
+        <div style="font-size:13px;font-weight:700;color:var(--am3);line-height:1.5">
+          ⚠️ Isso <strong>substituirá</strong> os dados atuais pelos dados do backup.
+        </div>
+      </div>
+      <input type="file" id="backupFileInput" accept=".json"
+        style="display:none" onchange="App.processarBackup(this)">
+      <button class="btn btn-g" onclick="document.getElementById('backupFileInput').click()">
+        📂 Selecionar arquivo de backup
+      </button>
+      <button class="btn btn-w" onclick="App.fecharModal()">Cancelar</button>
+    `);
+  }
+
+  function processarBackup(input) {
+    const file = input.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        const dados = JSON.parse(e.target.result);
+
+        // Validar estrutura do arquivo
+        if (!dados.medicamentos || !Array.isArray(dados.medicamentos)) {
+          toast('❌ Arquivo inválido. Selecione um backup do MedAlert.');
+          return;
+        }
+
+        const qtdMeds = dados.medicamentos.length;
+        const qtdRegs = (dados.registros || []).length;
+        const dataBackup = dados.data
+          ? new Date(dados.data).toLocaleDateString('pt-BR')
+          : 'data desconhecida';
+
+        // Confirmar antes de restaurar
+        fecharModal();
+        abrirModal(`
+          <div class="modal-title">📥 Confirmar Restauração</div>
+          <div style="background:var(--g3);border-radius:13px;padding:14px 16px;margin-bottom:16px">
+            <div style="font-size:13px;font-weight:700;color:var(--g4);margin-bottom:8px">📋 Conteúdo do backup</div>
+            <div style="font-size:15px;font-weight:800;color:var(--g4)">📅 Data: ${dataBackup}</div>
+            <div style="font-size:15px;font-weight:800;color:var(--g4);margin-top:4px">💊 ${qtdMeds} remédio${qtdMeds!==1?'s':''}</div>
+            <div style="font-size:15px;font-weight:800;color:var(--g4);margin-top:4px">📋 ${qtdRegs} registro${qtdRegs!==1?'s':''} no histórico</div>
+          </div>
+          <button class="btn btn-g" onclick="App.confirmarRestauracao(${JSON.stringify(JSON.stringify(dados)).replace(/'/g, "&#39;")})">
+            ✅ Restaurar estes dados
+          </button>
+          <button class="btn btn-w" onclick="App.fecharModal()">Cancelar</button>
+        `);
+
+        // Guardar dados em memória para uso na confirmação
+        window._backupDados = dados;
+
+      } catch(err) {
+        toast('❌ Erro ao ler arquivo. Verifique se é um backup válido do MedAlert.');
+      }
+    };
+    reader.readAsText(file);
+    input.value = '';
+  }
+
+  function confirmarRestauracao() {
+    const dados = window._backupDados;
+    if (!dados) { toast('❌ Dados do backup não encontrados'); return; }
+
+    try {
+      // Preservar chave API atual
+      const chaveApi = DB.apikey;
+
+      // Restaurar dados
+      DB.medicamentos = dados.medicamentos || [];
+      DB.registros    = dados.registros    || [];
+      if (dados.config) {
+        const cfgAtual = DB.config;
+        // Mesclar config do backup com a atual (preservar preferências locais)
+        DB.config = Object.assign(cfgAtual, dados.config);
+      }
+
+      // Marcar como usuário real
+      localStorage.setItem('med_usuario_real', '1');
+
+      // Restaurar chave API se existia
+      if (chaveApi) DB.apikey = chaveApi;
+
+      window._backupDados = null;
+      fecharModal();
+      toast(`✅ ${dados.medicamentos.length} remédio(s) restaurado(s) com sucesso!`);
+      go('home');
+      renderHome();
+    } catch(err) {
+      toast('❌ Erro ao restaurar: ' + err.message);
+    }
+  }
+
   function exportarPDF() {
     const meds = DB.medicamentos;
     const regs = DB.registros;
@@ -2864,6 +3041,7 @@ Regras:
     configAlertas, selecionarToque, testarToque, salvarVolume, salvarSilencio,
     ajustarFonte, setFonte, toggleTema,
     verificarAtualizacao, forcarAtualizacao,
+    fazerBackup, abrirRestaurarBackup, processarBackup, confirmarRestauracao,
     confirmarLimpar, limparTudo, exportarPDF,
     renderDetalhe, renderConfig, onFreqChange, adicionarHora, removerHora,
     selecionarCor, selecionarEmoji, voltarDoForm,
@@ -2915,7 +3093,7 @@ document.addEventListener('DOMContentLoaded', App.init);
   if('serviceWorker' in navigator){
     navigator.serviceWorker.register('sw.js')
       .then(function(reg){
-        console.log('[SW] Registrado v4:', reg.scope);
+        console.log('[SW] Registrado v5:', reg.scope);
 
         // Escutar mensagens do SW
         navigator.serviceWorker.addEventListener('message', function(e){

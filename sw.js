@@ -1,21 +1,19 @@
-/* MedAlert — Service Worker v4
-   Suporte a atualização forçada via botão no app */
+/* MedAlert — Service Worker v5
+   Cache forçado a renovar */
 
-const CACHE   = 'medalert-v4';
-const VERSION = '1.2.0';
+const CACHE   = 'medalert-v6';
+const VERSION = '1.3.0';
 const FILES   = ['./', './index.html', './manifest.json', './icons/icon-192.png', './icons/icon-512.png'];
 
-/* ── INSTALL ─────────────────────────────────────────────── */
 self.addEventListener('install', e => {
   console.log('[SW] Instalando versão', VERSION);
   e.waitUntil(
     caches.open(CACHE)
       .then(c => c.addAll(FILES))
-      .then(() => self.skipWaiting()) // Ativa imediatamente sem esperar fechar aba
+      .then(() => self.skipWaiting())
   );
 });
 
-/* ── ACTIVATE ────────────────────────────────────────────── */
 self.addEventListener('activate', e => {
   console.log('[SW] Ativando versão', VERSION);
   e.waitUntil(
@@ -26,9 +24,8 @@ self.addEventListener('activate', e => {
           return caches.delete(k);
         })
       ))
-      .then(() => self.clients.claim()) // Assume controle de todas as abas abertas
+      .then(() => self.clients.claim())
       .then(() => {
-        // Avisar todas as abas que há uma nova versão
         return self.clients.matchAll({ type: 'window' }).then(clients => {
           clients.forEach(client => {
             client.postMessage({ type: 'SW_ATUALIZADO', version: VERSION });
@@ -38,9 +35,7 @@ self.addEventListener('activate', e => {
   );
 });
 
-/* ── FETCH: cache-first ──────────────────────────────────── */
 self.addEventListener('fetch', e => {
-  // Nunca interceptar chamadas à API externa
   if (!e.request.url.startsWith(self.location.origin)) return;
 
   e.respondWith(
@@ -59,11 +54,8 @@ self.addEventListener('fetch', e => {
   );
 });
 
-/* ── MENSAGEM: forçar atualização ────────────────────────── */
 self.addEventListener('message', e => {
   if (e.data && e.data.type === 'FORCAR_ATUALIZACAO') {
-    console.log('[SW] Forçando atualização...');
-    // Limpar todo o cache e se re-instalar
     caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k))))
       .then(() => self.registration.update());
   }
@@ -72,7 +64,6 @@ self.addEventListener('message', e => {
   }
 });
 
-/* ── NOTIFICAÇÃO ─────────────────────────────────────────── */
 self.addEventListener('notificationclick', e => {
   e.notification.close();
   e.waitUntil(
