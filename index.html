@@ -897,6 +897,7 @@ input[type=range]::-webkit-slider-thumb{
 ═══════════════════════════════════════════════════════════════════ */
 
 /* ── CONSTANTES ──────────────────────────────────────────────────── */
+const APP_VERSION  = '1.2.0';
 const CORES = ['#E8F5EE','#EFF6FF','#FEF3C7','#F5F3FF','#FFF0F0','#F0FDF4','#FDF4FF','#FFF7ED'];
 const CORES_TEXT = ['#0F5235','#1D4ED8','#92400E','#5B21B6','#991B1B','#166534','#6B21A2','#9A3412'];
 const EMOJIS = ['💊','💉','🩺','🫀','🧠','👁️','🦷','🦴','🌡️','⭐','🍃','🔵'];
@@ -1772,6 +1773,17 @@ const App = (() => {
         </div>
       </div>
 
+      <div class="st">🔄 Atualização</div>
+      <div class="cfg-sec">
+        <div class="cfg-row" onclick="App.verificarAtualizacao()">
+          <div class="cfg-l"><span class="cfg-ic">🔄</span><div>
+            <div class="cfg-h">Verificar atualização</div>
+            <div class="cfg-p" id="cfgVersaoTxt">Versão ${APP_VERSION} instalada</div>
+          </div></div>
+          <span class="cfg-v">›</span>
+        </div>
+      </div>
+
       <div class="st">🗑️ Dados</div>
       <div class="cfg-sec">
         <div class="cfg-row" onclick="App.exportarPDF()">
@@ -1783,7 +1795,7 @@ const App = (() => {
           <span class="cfg-v">›</span>
         </div>
       </div>
-      <div style="text-align:center;font-size:12px;color:var(--c4);padding:16px 0;font-weight:600">MedAlert v1.0 · Feito com ❤️ para sua saúde</div>
+      <div style="text-align:center;font-size:12px;color:var(--c4);padding:16px 0;font-weight:600">MedAlert ${APP_VERSION} · Feito com ❤️ para sua saúde</div>
     `;
   }
 
@@ -2625,6 +2637,114 @@ Regras:
     }
   }
 
+  async function verificarAtualizacao() {
+    // Mostrar estado inicial
+    abrirModal(`
+      <div class="modal-title">🔄 Atualização do App</div>
+      <div style="background:var(--g3);border-radius:13px;padding:14px 16px;margin-bottom:16px;display:flex;align-items:center;gap:12px">
+        <span style="font-size:26px">📱</span>
+        <div>
+          <div style="font-size:14px;font-weight:800;color:var(--g4)">Versão instalada</div>
+          <div style="font-size:20px;font-weight:900;color:var(--g)">${APP_VERSION}</div>
+        </div>
+      </div>
+      <div id="updateStatus" style="background:var(--c7);border-radius:13px;padding:14px 16px;margin-bottom:16px;font-size:14px;font-weight:700;color:var(--c3);text-align:center">
+        🔍 Verificando atualização...
+      </div>
+      <button class="btn btn-g" id="btnForcarUpdate" onclick="App.forcarAtualizacao()" style="display:none">
+        ⬇️ Baixar e instalar atualização
+      </button>
+      <button class="btn btn-w" onclick="App.fecharModal()">Fechar</button>
+    `);
+
+    // Tentar verificar se há versão nova no servidor
+    try {
+      // Buscar o sw.js sem cache para ler a versão mais recente
+      const resp = await fetch('./sw.js?t=' + Date.now(), { cache: 'no-store' });
+      if (!resp.ok) throw new Error('Sem conexão');
+      const text = await resp.text();
+
+      // Extrair versão do sw.js remoto
+      const match = text.match(/VERSION\s*=\s*'([^']+)'/);
+      const versaoRemota = match ? match[1] : null;
+
+      const el = document.getElementById('updateStatus');
+      const btnUpdate = document.getElementById('btnForcarUpdate');
+      if (!el) return;
+
+      if (!versaoRemota) {
+        el.textContent = '✅ App está atualizado!';
+        el.style.background = 'var(--g3)';
+        el.style.color = 'var(--g4)';
+      } else if (versaoRemota !== APP_VERSION) {
+        el.innerHTML = `
+          <div style="color:var(--az);font-weight:800;font-size:15px;margin-bottom:6px">🆕 Nova versão disponível!</div>
+          <div style="color:var(--c3)">Versão ${versaoRemota} disponível<br>Você tem a ${APP_VERSION}</div>
+        `;
+        el.style.background = 'var(--az2)';
+        if (btnUpdate) btnUpdate.style.display = 'flex';
+      } else {
+        el.innerHTML = `<span style="color:var(--g4)">✅ Você já tem a versão mais recente!</span>`;
+        el.style.background = 'var(--g3)';
+      }
+    } catch(e) {
+      const el = document.getElementById('updateStatus');
+      if (el) {
+        el.innerHTML = '<span style="color:var(--am3)">⚠️ Sem conexão com a internet.<br>Conecte ao Wi-Fi e tente novamente.</span>';
+        el.style.background = 'var(--am2)';
+      }
+    }
+  }
+
+  async function forcarAtualizacao() {
+    const el = document.getElementById('updateStatus');
+    const btn = document.getElementById('btnForcarUpdate');
+    if (el) { el.innerHTML = '⏳ Baixando atualização...'; el.style.background = 'var(--az2)'; }
+    if (btn) btn.style.display = 'none';
+
+    try {
+      // 1. Limpar todos os caches do Service Worker
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(k => caches.delete(k)));
+        console.log('[Update] Caches limpos:', keys.length);
+      }
+
+      // 2. Pedir ao SW para se atualizar
+      if ('serviceWorker' in navigator) {
+        const reg = await navigator.serviceWorker.getRegistration();
+        if (reg) {
+          await reg.update();
+          // Mandar mensagem para o SW pular a espera
+          if (reg.waiting) {
+            reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+          }
+          if (reg.installing) {
+            reg.installing.postMessage({ type: 'SKIP_WAITING' });
+          }
+        }
+      }
+
+      if (el) {
+        el.innerHTML = '✅ Atualização baixada!<br><strong>O app vai recarregar agora...</strong>';
+        el.style.background = 'var(--g3)';
+        el.style.color = 'var(--g4)';
+      }
+
+      // 3. Recarregar a página após 2 segundos
+      setTimeout(() => {
+        window.location.reload(true);
+      }, 2000);
+
+    } catch(e) {
+      if (el) {
+        el.innerHTML = '❌ Erro ao atualizar. Tente fechar e abrir o app manualmente.';
+        el.style.background = 'var(--vm2)';
+        el.style.color = '#991B1B';
+      }
+    }
+  }
+
   function confirmarLimpar() {
     abrirModal(`
       <div class="modal-title">⚠️ Limpar todos os dados?</div>
@@ -2743,6 +2863,7 @@ Regras:
     editarNome, salvarNome, editarCuidador, salvarCuidador,
     editarApiKey, salvarApiKey, testarApiKey, toggleVerChave, apagarApiKey,
     ajustarFonte, setFonte, toggleTema,
+    verificarAtualizacao, forcarAtualizacao,
     confirmarLimpar, limparTudo, exportarPDF,
     renderDetalhe, onFreqChange, adicionarHora, removerHora,
     selecionarCor, selecionarEmoji, voltarDoForm,
@@ -2794,13 +2915,49 @@ document.addEventListener('DOMContentLoaded', App.init);
   if('serviceWorker' in navigator){
     navigator.serviceWorker.register('sw.js')
       .then(function(reg){
-        console.log('[SW] Registrado v3:', reg.scope);
+        console.log('[SW] Registrado v4:', reg.scope);
+
+        // Escutar mensagens do SW
         navigator.serviceWorker.addEventListener('message', function(e){
-          if(e.data && e.data.type==='CONFIRMAR_TOMA' && window.App)
+          if(!e.data) return;
+
+          // Confirmação de toma via notificação do sistema
+          if(e.data.type === 'CONFIRMAR_TOMA' && window.App)
             App.confirmarNotifById(e.data.medId, e.data.horario);
+
+          // SW avisou que foi atualizado — mostrar banner
+          if(e.data.type === 'SW_ATUALIZADO') {
+            console.log('[SW] Nova versão ativa:', e.data.version);
+            // Só avisar se a versão for diferente da atual
+            if(e.data.version && e.data.version !== (window.APP_VERSION || '')) {
+              setTimeout(function(){
+                if(window.App) App.toast('🆕 App atualizado para v' + e.data.version + '! ✅');
+              }, 1000);
+            }
+          }
+        });
+
+        // Detectar quando um novo SW está esperando (versão nova disponível)
+        reg.addEventListener('updatefound', function(){
+          const newWorker = reg.installing;
+          if(!newWorker) return;
+          newWorker.addEventListener('statechange', function(){
+            if(newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              // Nova versão pronta — avisar o usuário
+              if(window.App) {
+                App.toast('🆕 Atualização disponível! Vá em Configurações → Verificar atualização.');
+              }
+            }
+          });
         });
       })
       .catch(function(err){ console.warn('[SW] Erro:', err); });
+
+    // Recarregar quando o SW assumir controle (após forceUpdate)
+    var refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', function(){
+      if(!refreshing) { refreshing = true; }
+    });
   }
 
   var deferredPrompt = null;
