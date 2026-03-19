@@ -1044,8 +1044,7 @@ const App = (() => {
       'home':      renderHome,
       'remedios':  renderRemedios,
       'historico': renderHistorico,
-      'config':    configAlertas, selecionarToque, testarToque, salvarVolume, salvarSilencio,
-    renderConfig,
+      'config':    renderConfig,
     };
     if(renders[tela]) renders[tela]();
   }
@@ -2862,10 +2861,11 @@ Regras:
     calMudar, toggleCfg, togglePausar,
     editarNome, salvarNome, editarCuidador, salvarCuidador,
     editarApiKey, salvarApiKey, testarApiKey, toggleVerChave, apagarApiKey,
+    configAlertas, selecionarToque, testarToque, salvarVolume, salvarSilencio,
     ajustarFonte, setFonte, toggleTema,
     verificarAtualizacao, forcarAtualizacao,
     confirmarLimpar, limparTudo, exportarPDF,
-    renderDetalhe, onFreqChange, adicionarHora, removerHora,
+    renderDetalhe, renderConfig, onFreqChange, adicionarHora, removerHora,
     selecionarCor, selecionarEmoji, voltarDoForm,
     mostrarNotifById: (id, h) => {
       const m = DB.medicamentos.find(m=>m.id===id);
