@@ -1,0 +1,2593 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#1A7A4E">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MedAlert">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="description" content="Gerenciador inteligente de medicamentos">
+<title>MedAlert — Meus Remédios</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152.png">
+<link rel="apple-touch-icon" sizes="192x192" href="icons/icon-192.png">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════════
+   VARIÁVEIS & RESET
+═══════════════════════════════════════════════ */
+:root{
+  --g:    #1A7A4E;
+  --g2:   #2E9D64;
+  --g3:   #E8F5EE;
+  --g4:   #0F5235;
+  --am:   #F59E0B;
+  --am2:  #FEF3C7;
+  --am3:  #92400E;
+  --vm:   #DC2626;
+  --vm2:  #FEE2E2;
+  --az:   #2563EB;
+  --az2:  #DBEAFE;
+  --rx:   #7C3AED;
+  --rx2:  #F5F3FF;
+  --c1:   #111827;
+  --c2:   #374151;
+  --c3:   #6B7280;
+  --c4:   #9CA3AF;
+  --c5:   #D1D5DB;
+  --c6:   #E5E7EB;
+  --c7:   #F3F4F6;
+  --c8:   #F9FAFB;
+  --bg:   #F0F4F1;
+  --card: #FFFFFF;
+  --sh:   0 2px 16px rgba(0,0,0,.08);
+  --r:    18px;
+  --r2:   12px;
+  --f:    'Nunito',sans-serif;
+  --t:    .18s cubic-bezier(.4,0,.2,1);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:var(--g);font-family:var(--f);-webkit-font-smoothing:antialiased}
+
+/* ═══════════════════════════════════════════════
+   SHELL DO APP
+═══════════════════════════════════════════════ */
+#app{
+  width:100%;max-width:430px;height:100%;
+  margin:0 auto;display:flex;flex-direction:column;
+  background:var(--bg);position:relative;overflow:hidden;
+}
+@media(min-width:431px){#app{height:100vh;box-shadow:0 0 80px rgba(0,0,0,.5)}}
+
+/* ═══════════════════════════════════════════════
+   STATUS BAR
+═══════════════════════════════════════════════ */
+#sb{
+  background:var(--g);padding:12px 20px 8px;
+  padding-top:max(12px,env(safe-area-inset-top));
+  display:flex;justify-content:space-between;align-items:center;
+  flex-shrink:0;
+}
+.sb-t{color:#fff;font-size:15px;font-weight:800}
+.sb-i{display:flex;gap:8px;color:rgba(255,255,255,.9);font-size:13px}
+
+/* ═══════════════════════════════════════════════
+   TELAS
+═══════════════════════════════════════════════ */
+.screen{
+  flex:1;overflow-y:auto;overflow-x:hidden;
+  display:none;flex-direction:column;
+  -webkit-overflow-scrolling:touch;
+  scrollbar-width:none;
+}
+.screen::-webkit-scrollbar{display:none}
+.screen.on{display:flex}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.screen.on .anim > *,.screen.on .anim-d > *{
+  animation:fadeUp .28s ease both;
+}
+.screen.on .anim-d > *:nth-child(1){animation-delay:.04s}
+.screen.on .anim-d > *:nth-child(2){animation-delay:.08s}
+.screen.on .anim-d > *:nth-child(3){animation-delay:.12s}
+.screen.on .anim-d > *:nth-child(4){animation-delay:.16s}
+.screen.on .anim-d > *:nth-child(5){animation-delay:.20s}
+.screen.on .anim-d > *:nth-child(6){animation-delay:.24s}
+
+/* ═══════════════════════════════════════════════
+   TOP BAR
+═══════════════════════════════════════════════ */
+.tb{
+  background:var(--g);padding:14px 20px 20px;
+  flex-shrink:0;
+}
+.tb-back{
+  background:none;border:none;color:rgba(255,255,255,.8);
+  font-family:var(--f);font-size:15px;font-weight:700;
+  padding:0 0 10px;cursor:pointer;display:flex;align-items:center;gap:6px;
+}
+.tb h1{color:#fff;font-size:22px;font-weight:900}
+.tb p{color:rgba(255,255,255,.75);font-size:13px;margin-top:4px;font-weight:600}
+
+/* ═══════════════════════════════════════════════
+   CONTEÚDO
+═══════════════════════════════════════════════ */
+.ct{padding:14px 14px 100px}
+
+/* ═══════════════════════════════════════════════
+   CARDS
+═══════════════════════════════════════════════ */
+.card{background:var(--card);border-radius:var(--r);box-shadow:var(--sh);margin-bottom:12px;overflow:hidden}
+.cp{padding:16px}
+
+/* ═══════════════════════════════════════════════
+   SEÇÃO TÍTULO
+═══════════════════════════════════════════════ */
+.st{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--c3);margin:14px 2px 8px}
+
+/* ═══════════════════════════════════════════════
+   BADGES
+═══════════════════════════════════════════════ */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:99px;font-size:12px;font-weight:800}
+.bv{background:var(--g3);color:var(--g4)}
+.baz{background:var(--az2);color:#1D4ED8}
+.bam{background:var(--am2);color:var(--am3)}
+.bvmh{background:var(--vm2);color:#991B1B}
+
+/* ═══════════════════════════════════════════════
+   RESUMO DO DIA
+═══════════════════════════════════════════════ */
+#resumo{
+  background:var(--card);border-radius:var(--r);box-shadow:var(--sh);
+  display:grid;grid-template-columns:1fr 1px 1fr 1px 1fr;
+  margin-bottom:14px;
+}
+.ri{padding:16px 4px;display:flex;flex-direction:column;align-items:center;gap:4px}
+.rn{font-size:28px;font-weight:900;line-height:1}
+.rl{font-size:11px;font-weight:700;color:var(--c3);text-align:center}
+.rsep{background:var(--c6)}
+
+/* ═══════════════════════════════════════════════
+   CARD MEDICAMENTO (HOME)
+═══════════════════════════════════════════════ */
+.mc{
+  background:var(--card);border-radius:var(--r);box-shadow:var(--sh);
+  margin-bottom:12px;padding:16px;
+  cursor:pointer;transition:transform var(--t),box-shadow var(--t);
+  user-select:none;
+}
+.mc:active{transform:scale(.98);box-shadow:0 1px 6px rgba(0,0,0,.07)}
+.mc-h{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.mc-em{width:50px;height:50px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0}
+.mc-nm{font-size:17px;font-weight:800;color:var(--c1)}
+.mc-ds{font-size:13px;color:var(--c3);margin-top:2px;font-weight:600}
+.mc-hr{display:flex;align-items:center;gap:10px;border-radius:12px;padding:10px 14px;margin-bottom:11px}
+.mc-h-hora{font-size:20px;font-weight:900;min-width:56px}
+.bc{
+  width:100%;border:none;border-radius:13px;padding:15px;
+  font-size:17px;font-weight:800;font-family:var(--f);
+  cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;
+  transition:all var(--t);
+}
+.bc:active{transform:scale(.98)}
+.bc-p{background:var(--g);color:#fff}
+.bc-p:active{background:var(--g4)}
+.bc-a{background:var(--am);color:#fff}
+.bc-ok{background:var(--g3);color:var(--g4);pointer-events:none}
+.bc-off{background:var(--c7);color:var(--c5);pointer-events:none}
+
+/* ═══════════════════════════════════════════════
+   ITEM REMÉDIO (LISTA)
+═══════════════════════════════════════════════ */
+.ri-item{
+  background:var(--card);border-radius:var(--r);box-shadow:var(--sh);
+  padding:15px 16px;margin-bottom:11px;
+  display:flex;align-items:center;gap:12px;
+  cursor:pointer;transition:transform var(--t);user-select:none;
+}
+.ri-item:active{transform:scale(.98)}
+.ri-em{width:48px;height:48px;border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0}
+.ri-dados{flex:1;min-width:0}
+.ri-nm{font-size:16px;font-weight:800;color:var(--c1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ri-ds{font-size:13px;color:var(--c3);margin-top:2px;font-weight:600}
+.ri-prox{text-align:right;flex-shrink:0}
+.ri-hr{font-size:16px;font-weight:900;color:var(--g)}
+.ri-lb{font-size:11px;color:var(--c3);font-weight:700}
+
+/* ═══════════════════════════════════════════════
+   FORMULÁRIO
+═══════════════════════════════════════════════ */
+.campo{margin-bottom:14px}
+.campo label{display:block;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:var(--c3);margin-bottom:7px}
+.campo label.wl{color:var(--am3)}
+.campo input,.campo select,.campo textarea{
+  width:100%;background:var(--card);border:2px solid var(--c6);border-radius:14px;
+  padding:14px 15px;font-size:17px;font-family:var(--f);color:var(--c1);
+  outline:none;transition:border-color var(--t);-webkit-appearance:none;appearance:none;
+}
+.campo input:focus,.campo select:focus,.campo textarea:focus{border-color:var(--g)}
+.campo input.wi,.campo select.wi{background:var(--am2);border-color:var(--am)!important}
+.campo textarea{resize:none;min-height:80px}
+.campo-hint{font-size:12px;color:var(--am3);font-weight:700;margin-top:5px;display:flex;align-items:center;gap:4px}
+
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+.hora-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.hora-chip{
+  display:inline-flex;align-items:center;gap:6px;
+  background:var(--g3);color:var(--g4);border-radius:10px;
+  padding:9px 13px;font-size:15px;font-weight:800;cursor:pointer;
+  border:none;font-family:var(--f);transition:all var(--t);
+}
+.hora-chip:active{background:#c6e8d4}
+.hora-chip .xh{font-size:16px;opacity:.55;margin-left:2px}
+.add-hora-btn{
+  display:inline-flex;align-items:center;gap:6px;
+  background:var(--c7);color:var(--c3);border-radius:10px;
+  padding:9px 13px;font-size:14px;font-weight:800;cursor:pointer;
+  border:2px dashed var(--c5);font-family:var(--f);transition:all var(--t);
+}
+.add-hora-btn:active{background:var(--c6)}
+
+.color-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
+.cdot{
+  width:38px;height:38px;border-radius:50%;cursor:pointer;
+  border:3px solid transparent;transition:all var(--t);
+}
+.cdot.sel{border-color:var(--c1);transform:scale(1.2)}
+
+/* ═══════════════════════════════════════════════
+   BOTÕES
+═══════════════════════════════════════════════ */
+.btn{
+  width:100%;border:none;border-radius:16px;padding:17px;
+  font-size:17px;font-weight:800;font-family:var(--f);
+  cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;
+  transition:all var(--t);
+}
+.btn:active{transform:scale(.98)}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.btn-g{background:var(--g);color:#fff}
+.btn-g:active{background:var(--g4)}
+.btn-w{background:var(--c7);color:var(--c3);margin-top:10px}
+.btn-vm{background:var(--vm2);color:var(--vm);margin-top:10px}
+
+/* ═══════════════════════════════════════════════
+   CALENDÁRIO
+═══════════════════════════════════════════════ */
+.cal-card{background:var(--card);border-radius:var(--r);box-shadow:var(--sh);padding:16px;margin-bottom:12px}
+.cal-mes{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.cal-mes-txt{font-size:16px;font-weight:900;color:var(--c1)}
+.cal-nav{background:none;border:none;font-size:22px;cursor:pointer;padding:4px 8px;border-radius:8px;transition:background var(--t)}
+.cal-nav:active{background:var(--c7)}
+.cal-days-header{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:6px}
+.cal-dh{text-align:center;font-size:10px;font-weight:800;color:var(--c3);text-transform:uppercase}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+.cal-d{
+  aspect-ratio:1;border-radius:10px;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;font-size:13px;font-weight:800;
+  cursor:pointer;background:var(--card);color:var(--c2);gap:2px;
+  border:1.5px solid var(--c6);transition:transform var(--t);
+}
+.cal-d:active{transform:scale(.9)}
+.cal-d.vazio{background:transparent;border:none;cursor:default;pointer-events:none}
+.cal-d.hoje{border-color:var(--g);color:var(--g)}
+.cal-d.dok{background:var(--g3);border-color:var(--g3);color:var(--g4)}
+.cal-d.dparcial{background:var(--am2);border-color:var(--am2);color:var(--am3)}
+.cal-d.druim{background:var(--vm2);border-color:var(--vm2);color:#991B1B}
+.cal-dot{width:5px;height:5px;border-radius:50%;background:currentColor;opacity:.7}
+
+/* ═══════════════════════════════════════════════
+   ADESÃO
+═══════════════════════════════════════════════ */
+.ad-card{background:var(--card);border-radius:var(--r);box-shadow:var(--sh);padding:16px;margin-bottom:12px}
+.ad-top{display:flex;align-items:flex-end;gap:8px;margin-bottom:6px}
+.ad-pct{font-size:38px;font-weight:900;color:var(--g);line-height:1}
+.ad-de{font-size:14px;font-weight:700;color:var(--c3);padding-bottom:5px}
+.ad-desc{font-size:13px;color:var(--c3);margin-bottom:12px;font-weight:600}
+.prog{background:var(--c6);border-radius:99px;height:12px;overflow:hidden}
+.prog-f{background:var(--g);border-radius:99px;height:100%;transition:width 1.3s cubic-bezier(.4,0,.2,1)}
+
+/* ═══════════════════════════════════════════════
+   HISTÓRICO ITEM
+═══════════════════════════════════════════════ */
+.hi{
+  background:var(--card);border-radius:14px;box-shadow:0 1px 6px rgba(0,0,0,.05);
+  padding:13px 15px;margin-bottom:9px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.hi-l{display:flex;align-items:center;gap:11px}
+.hi-em{font-size:22px}
+.hi-nm{font-size:15px;font-weight:800;color:var(--c1)}
+.hi-hr{font-size:12px;color:var(--c3);margin-top:2px;font-weight:600}
+
+/* ═══════════════════════════════════════════════
+   CONFIGURAÇÕES
+═══════════════════════════════════════════════ */
+.cfg-sec{background:var(--card);border-radius:var(--r);box-shadow:var(--sh);margin-bottom:12px;overflow:hidden}
+.cfg-row{
+  padding:16px 17px;display:flex;align-items:center;justify-content:space-between;
+  cursor:pointer;border-bottom:1px solid var(--c7);transition:background var(--t);
+}
+.cfg-row:last-child{border-bottom:none}
+.cfg-row:active{background:var(--c7)}
+.cfg-l{display:flex;align-items:center;gap:13px}
+.cfg-ic{font-size:22px;width:30px;text-align:center}
+.cfg-h{font-size:16px;font-weight:700;color:var(--c1)}
+.cfg-p{font-size:13px;color:var(--c3);margin-top:2px;font-weight:600}
+.cfg-v{font-size:13px;color:var(--c3);font-weight:700}
+
+.toggle{
+  width:52px;height:30px;background:var(--c5);border-radius:15px;
+  position:relative;cursor:pointer;transition:background var(--t);flex-shrink:0;
+}
+.toggle.on{background:var(--g)}
+.toggle::after{
+  content:'';width:24px;height:24px;background:#fff;border-radius:50%;
+  position:absolute;top:3px;left:3px;transition:left var(--t);
+  box-shadow:0 2px 5px rgba(0,0,0,.25);
+}
+.toggle.on::after{left:25px}
+
+/* ═══════════════════════════════════════════════
+   NOTIFICAÇÃO OVERLAY
+═══════════════════════════════════════════════ */
+#notifOv{
+  position:absolute;inset:0;background:rgba(0,0,0,.65);
+  display:flex;align-items:flex-end;padding:18px;z-index:50;
+  opacity:0;pointer-events:none;transition:opacity .3s;
+  backdrop-filter:blur(6px);
+}
+#notifOv.on{opacity:1;pointer-events:auto}
+.notif-sheet{
+  background:var(--card);border-radius:28px;padding:26px 22px;width:100%;
+  transform:translateY(80px);transition:transform .36s cubic-bezier(.34,1.56,.64,1);
+}
+#notifOv.on .notif-sheet{transform:translateY(0)}
+.notif-ic{
+  width:70px;height:70px;border-radius:22px;background:var(--g3);
+  display:flex;align-items:center;justify-content:center;font-size:38px;
+  margin:0 auto 16px;
+}
+.notif-label{text-align:center;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--c3);margin-bottom:8px}
+.notif-nm{text-align:center;font-size:26px;font-weight:900;color:var(--c1);margin-bottom:5px}
+.notif-ds{text-align:center;font-size:15px;color:var(--c3);margin-bottom:8px;font-weight:600}
+.notif-inst{
+  text-align:center;font-size:14px;font-weight:700;color:var(--g4);
+  background:var(--g3);border-radius:12px;padding:10px 14px;margin-bottom:22px;
+}
+
+/* ═══════════════════════════════════════════════
+   MODAL BOTTOM SHEET
+═══════════════════════════════════════════════ */
+#modal{
+  position:absolute;inset:0;background:rgba(0,0,0,.6);
+  display:flex;align-items:flex-end;z-index:60;
+  opacity:0;pointer-events:none;transition:opacity .3s;
+  backdrop-filter:blur(4px);
+}
+#modal.on{opacity:1;pointer-events:auto}
+.modal-sh{
+  background:var(--bg);border-radius:28px 28px 0 0;width:100%;
+  max-height:92%;overflow-y:auto;padding:20px 18px 40px;
+  transform:translateY(100%);transition:transform .36s cubic-bezier(.34,1.56,.64,1);
+  scrollbar-width:none;
+}
+#modal.on .modal-sh{transform:translateY(0)}
+.modal-sh::-webkit-scrollbar{display:none}
+.modal-handle{width:40px;height:4px;background:var(--c5);border-radius:2px;margin:0 auto 18px}
+.modal-title{font-size:20px;font-weight:900;color:var(--c1);margin-bottom:18px}
+
+/* ═══════════════════════════════════════════════
+   IA LOADING
+═══════════════════════════════════════════════ */
+.ia-wrap{padding:40px 20px;text-align:center;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.ia-spin{width:68px;height:68px;border-radius:50%;border:5px solid var(--g3);border-top-color:var(--g);animation:spin 1s linear infinite;margin:0 auto 22px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.ia-h{font-size:21px;font-weight:900;color:var(--c1);margin-bottom:8px}
+.ia-p{font-size:14px;color:var(--c3);line-height:1.6;font-weight:600;max-width:280px}
+.ia-steps{margin-top:22px;width:100%;text-align:left}
+.ia-step{
+  display:flex;align-items:center;gap:12px;background:var(--card);
+  border-radius:12px;padding:12px 15px;margin-bottom:8px;
+  font-size:14px;font-weight:700;color:var(--c4);transition:color var(--t);
+}
+.ia-step.done{color:var(--g)}
+.ia-step-ic{
+  width:32px;height:32px;border-radius:9px;background:var(--c7);
+  display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;transition:background var(--t);
+}
+.ia-step.done .ia-step-ic{background:var(--g3)}
+
+/* ═══════════════════════════════════════════════
+   RESULTADO IA
+═══════════════════════════════════════════════ */
+.ia-res-card{background:var(--card);border-radius:var(--r);box-shadow:var(--sh);padding:18px;margin-bottom:12px}
+.ia-res-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.ia-res-titulo{font-size:16px;font-weight:900;color:var(--c1)}
+.ia-conf-badge{font-size:12px;font-weight:800;padding:5px 11px;border-radius:8px}
+.icba{background:var(--g3);color:var(--g4)}
+.icbb{background:var(--am2);color:var(--am3)}
+.ia-aviso{background:var(--am2);border-radius:12px;padding:12px;margin-bottom:14px;display:flex;align-items:flex-start;gap:10px;font-size:13px;font-weight:700;color:var(--am3)}
+
+/* ═══════════════════════════════════════════════
+   ADD OPÇÕES
+═══════════════════════════════════════════════ */
+.add-opt{
+  background:var(--card);border-radius:var(--r);box-shadow:var(--sh);
+  padding:22px 18px;margin-bottom:12px;display:flex;align-items:center;gap:16px;
+  cursor:pointer;border:2.5px solid transparent;
+  transition:border-color var(--t),transform var(--t);user-select:none;
+}
+.add-opt:active{transform:scale(.98);border-color:var(--g)}
+.add-opt-ic{width:60px;height:60px;border-radius:17px;display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0}
+.add-opt-h{font-size:17px;font-weight:800;color:var(--c1)}
+.add-opt-p{font-size:13px;color:var(--c3);margin-top:3px;line-height:1.4;font-weight:600}
+
+/* ═══════════════════════════════════════════════
+   DETALHE REMÉDIO
+═══════════════════════════════════════════════ */
+.det-hero{background:var(--g);padding:18px 18px 24px;display:flex;align-items:center;gap:15px}
+.det-ic{width:62px;height:62px;border-radius:19px;display:flex;align-items:center;justify-content:center;font-size:34px;flex-shrink:0}
+.det-h{font-size:22px;font-weight:900;color:#fff}
+.det-p{font-size:14px;color:rgba(255,255,255,.78);margin-top:3px;font-weight:600}
+.det-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.det-stat{background:var(--card);border-radius:13px;box-shadow:var(--sh);padding:13px 14px}
+.det-sl{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--c3);margin-bottom:3px}
+.det-sv{font-size:17px;font-weight:900;color:var(--c1)}
+.hor-tags{display:flex;flex-wrap:wrap;gap:8px}
+.hor-tag{background:var(--g3);color:var(--g4);border-radius:10px;padding:8px 13px;font-size:16px;font-weight:900}
+
+/* ═══════════════════════════════════════════════
+   EMPTY STATE
+═══════════════════════════════════════════════ */
+.empty{text-align:center;padding:60px 20px;display:flex;flex-direction:column;align-items:center;gap:14px}
+.empty-ic{font-size:62px}
+.empty-h{font-size:20px;font-weight:800;color:var(--c1)}
+.empty-p{font-size:15px;color:var(--c3);line-height:1.5;font-weight:600;max-width:260px}
+
+/* ═══════════════════════════════════════════════
+   TOAST
+═══════════════════════════════════════════════ */
+#toast{
+  position:absolute;bottom:86px;left:14px;right:14px;
+  background:#111827;color:#fff;border-radius:16px;
+  padding:13px 17px;font-size:14px;font-weight:700;
+  display:flex;align-items:center;gap:9px;z-index:100;
+  opacity:0;pointer-events:none;
+  transition:opacity .25s,transform .25s;transform:translateY(8px);
+  box-shadow:0 8px 32px rgba(0,0,0,.35);
+}
+#toast.on{opacity:1;transform:translateY(0)}
+
+/* ═══════════════════════════════════════════════
+   NAVBAR
+═══════════════════════════════════════════════ */
+#nav{
+  background:var(--card);border-top:1px solid var(--c6);
+  padding:8px 10px;padding-bottom:max(8px,env(safe-area-inset-bottom));
+  display:flex;justify-content:space-around;align-items:center;
+  flex-shrink:0;box-shadow:0 -4px 24px rgba(0,0,0,.07);position:relative;z-index:20;
+}
+.nb{
+  display:flex;flex-direction:column;align-items:center;gap:3px;
+  background:none;border:none;cursor:pointer;
+  padding:5px 10px;border-radius:12px;font-family:var(--f);
+  transition:background var(--t);
+}
+.nb:active{background:var(--c7)}
+.nb-ic{font-size:22px;color:var(--c5);transition:color var(--t)}
+.nb-lb{font-size:10px;font-weight:800;color:var(--c5);transition:color var(--t)}
+.nb.on .nb-ic,.nb.on .nb-lb{color:var(--g)}
+.nb-add{
+  width:52px;height:52px;border-radius:50%;background:var(--g);
+  display:flex;align-items:center;justify-content:center;
+  font-size:27px;color:#fff;margin-top:-20px;
+  box-shadow:0 4px 18px rgba(26,122,78,.5);
+  cursor:pointer;border:none;font-family:var(--f);
+  transition:all var(--t);
+}
+.nb-add:active{transform:scale(.91)}
+
+/* ═══════════════════════════════════════════════
+   HOME HEADER
+═══════════════════════════════════════════════ */
+.home-top{background:var(--g);padding:16px 20px 22px;flex-shrink:0}
+.ht-sub{font-size:13px;color:rgba(255,255,255,.72);font-weight:700}
+.ht-nome{font-size:24px;font-weight:900;color:#fff;margin-top:2px}
+.ht-data{font-size:13px;color:rgba(255,255,255,.65);margin-top:4px;font-weight:600}
+
+/* ═══════════════════════════════════════════════
+   CAMERA SIMULADA
+═══════════════════════════════════════════════ */
+.cam-box{
+  background:#111;border-radius:18px;overflow:hidden;
+  aspect-ratio:3/4;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;position:relative;margin-bottom:14px;
+}
+.cam-frame{
+  position:absolute;inset:24px;border:2px solid rgba(255,255,255,.35);border-radius:14px;pointer-events:none;
+}
+.cam-corner{position:absolute;width:22px;height:22px;border-color:#fff;border-style:solid}
+.cam-corner.tl{top:28px;left:28px;border-width:3px 0 0 3px;border-radius:3px 0 0 0}
+.cam-corner.tr{top:28px;right:28px;border-width:3px 3px 0 0;border-radius:0 3px 0 0}
+.cam-corner.bl{bottom:28px;left:28px;border-width:0 0 3px 3px;border-radius:0 0 0 3px}
+.cam-corner.br{bottom:28px;right:28px;border-width:0 3px 3px 0;border-radius:0 0 3px 0}
+.cam-hint{color:rgba(255,255,255,.6);font-size:13px;font-weight:700;text-align:center;line-height:1.6}
+
+/* ═══════════════════════════════════════════════
+   ESTOQUE ALERTA
+═══════════════════════════════════════════════ */
+.est-alerta{
+  background:var(--am2);border-radius:14px;padding:13px 15px;
+  margin-bottom:11px;display:flex;align-items:center;gap:12px;
+}
+.est-txt h4{font-size:14px;font-weight:800;color:var(--am3)}
+.est-txt p{font-size:12px;color:var(--am3);margin-top:2px;font-weight:600}
+
+/* ═══════════════════════════════════════════════
+   CONFIRM RIPPLE
+═══════════════════════════════════════════════ */
+@keyframes ripple{
+  0%{box-shadow:0 0 0 0 rgba(26,122,78,.5)}
+  70%{box-shadow:0 0 0 20px rgba(26,122,78,0)}
+  100%{box-shadow:0 0 0 0 rgba(26,122,78,0)}
+}
+.ripple{animation:ripple .6s ease}
+
+/* ═══════════════════════════════════════════════
+   SLIDER FONTE (config)
+═══════════════════════════════════════════════ */
+input[type=range]{
+  -webkit-appearance:none;width:100%;height:6px;
+  background:var(--c6);border-radius:3px;outline:none;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:24px;height:24px;border-radius:50%;
+  background:var(--g);cursor:pointer;border:none;
+  box-shadow:0 2px 6px rgba(26,122,78,.4);
+}
+
+/* ═══════════════════════════════════════════════
+   PILL TABS (histórico)
+═══════════════════════════════════════════════ */
+.pill-tabs{display:flex;gap:8px;margin-bottom:14px}
+.pill-tab{
+  padding:8px 16px;border-radius:99px;font-size:13px;font-weight:800;
+  cursor:pointer;border:2px solid var(--c6);background:var(--card);color:var(--c3);
+  transition:all var(--t);font-family:var(--f);
+}
+.pill-tab.on{background:var(--g);border-color:var(--g);color:#fff}
+
+/* API KEY input */
+.apikey-wrap{background:var(--am2);border-radius:14px;padding:14px 15px;margin-bottom:14px}
+.apikey-wrap p{font-size:13px;color:var(--am3);font-weight:700;margin-bottom:10px;line-height:1.5}
+.apikey-wrap input{
+  width:100%;background:#fff;border:2px solid var(--am);border-radius:12px;
+  padding:12px 14px;font-size:14px;font-family:var(--f);color:var(--c1);outline:none;
+}
+/* ─── BANNER INSTALAÇÃO ───────────────────────────────────── */
+#installBanner{
+  position:absolute;bottom:0;left:0;right:0;
+  background:var(--card);border-top:1px solid var(--c6);
+  padding:16px 16px 20px;z-index:200;
+  display:none;flex-direction:column;gap:12px;
+  box-shadow:0 -8px 32px rgba(0,0,0,.18);
+}
+#installBanner.show{display:flex;animation:sbUp .35s cubic-bezier(.34,1.56,.64,1)}
+@keyframes sbUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.ib-row{display:flex;align-items:center;gap:14px}
+.ib-icon{width:54px;height:54px;border-radius:14px;background:var(--g3);
+  display:flex;align-items:center;justify-content:center;font-size:30px;flex-shrink:0}
+.ib-h{font-size:16px;font-weight:900;color:var(--c1)}
+.ib-p{font-size:13px;color:var(--c3);font-weight:600;margin-top:2px;line-height:1.4}
+.ib-btns{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ib-yes{background:var(--g);color:#fff;border:none;border-radius:13px;
+  padding:14px;font-size:15px;font-weight:800;font-family:var(--f);cursor:pointer}
+.ib-yes:active{background:var(--g4);transform:scale(.97)}
+.ib-no{background:var(--c7);color:var(--c3);border:none;border-radius:13px;
+  padding:14px;font-size:14px;font-weight:700;font-family:var(--f);cursor:pointer}
+/* iOS hint */
+#iosHint{
+  position:absolute;bottom:0;left:0;right:0;background:#1c1c1e;
+  padding:18px 18px 28px;z-index:200;border-radius:22px 22px 0 0;
+  display:none;flex-direction:column;gap:12px;
+}
+#iosHint.show{display:flex;animation:sbUp .35s cubic-bezier(.34,1.56,.64,1)}
+.ih-close{align-self:flex-end;background:none;border:none;color:rgba(255,255,255,.5);
+  font-size:24px;cursor:pointer;padding:0;line-height:1;font-family:var(--f)}
+.ih-title{font-size:16px;font-weight:900;color:#fff;margin-bottom:2px}
+.ih-sub{font-size:13px;color:rgba(255,255,255,.6);font-weight:600;margin-bottom:6px}
+.ih-step{display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.08);
+  border-radius:13px;padding:12px 14px;font-size:14px;font-weight:700;color:rgba(255,255,255,.9)}
+.ih-em{font-size:24px;flex-shrink:0}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- STATUS BAR -->
+  <div id="sb">
+    <span class="sb-t" id="clockTxt">09:32</span>
+    <div class="sb-i"><span>📶</span><span>🔋</span></div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       TELA HOME
+  ══════════════════════════════════════════ -->
+  <div class="screen on" id="s-home">
+    <div class="home-top">
+      <div class="ht-sub" id="saudacaoTxt">☀️ Bom dia,</div>
+      <div class="ht-nome" id="nomeUsuario">Usuário</div>
+      <div class="ht-data" id="dataTxt"></div>
+    </div>
+    <div class="ct anim-d" id="homeContent"></div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       TELA REMÉDIOS
+  ══════════════════════════════════════════ -->
+  <div class="screen" id="s-remedios">
+    <div class="tb"><h1>Meus Remédios</h1><p id="remCountTxt"></p></div>
+    <div class="ct anim-d" id="remediosContent"></div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       TELA ADICIONAR (escolha)
+  ══════════════════════════════════════════ -->
+  <div class="screen" id="s-adicionar">
+    <div class="tb"><h1>Adicionar Remédio</h1><p>Como você quer adicionar?</p></div>
+    <div class="ct anim-d">
+      <div class="add-opt" onclick="App.irCamera()">
+        <div class="add-opt-ic" style="background:#E8F5EE">📷</div>
+        <div>
+          <div class="add-opt-h">Foto da Receita</div>
+          <div class="add-opt-p">A IA lê a receita e preenche tudo automaticamente</div>
+        </div>
+      </div>
+      <div class="add-opt" onclick="App.irFormManual(null)">
+        <div class="add-opt-ic" style="background:#EFF6FF">✏️</div>
+        <div>
+          <div class="add-opt-h">Digitar Manualmente</div>
+          <div class="add-opt-p">Preencha os dados do remédio você mesmo</div>
+        </div>
+      </div>
+      <div style="background:#F0FDF4;border-radius:14px;padding:14px 15px;border:2px dashed #86EFAC">
+        <div style="font-size:13px;font-weight:800;color:#166534;margin-bottom:5px">💡 Dica</div>
+        <div style="font-size:13px;color:#166534;line-height:1.5;font-weight:600">Use a foto para cadastrar mais rápido! A IA lê os remédios e você só precisa confirmar os dados.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       TELA CÂMERA
+  ══════════════════════════════════════════ -->
+  <div class="screen" id="s-camera">
+    <div class="tb">
+      <button class="tb-back" onclick="App.go('adicionar')">← Voltar</button>
+      <h1>Fotografar Receita</h1>
+      <p>Enquadre bem a receita para melhor resultado</p>
+    </div>
+    <div class="ct">
+      <div class="cam-box">
+        <div class="cam-frame"></div>
+        <div class="cam-corner tl"></div><div class="cam-corner tr"></div>
+        <div class="cam-corner bl"></div><div class="cam-corner br"></div>
+        <div class="cam-hint">📄<br>Centralize a receita<br>dentro do guia</div>
+      </div>
+      <input type="file" id="fileInput" accept="image/*" capture="environment" style="display:none" onchange="App.onFotoSelecionada(this)">
+      <div class="apikey-wrap" id="apikeyWrap">
+        <p>⚙️ Para usar a IA, informe sua chave da API Anthropic (Claude). Ela fica salva só no seu dispositivo.</p>
+        <input type="password" id="apikeyInput" placeholder="sk-ant-..." value="">
+      </div>
+      <button class="btn btn-g" onclick="document.getElementById('fileInput').click()">📷 Abrir Câmera / Galeria</button>
+      <button class="btn btn-w" onclick="App.simularReceita()">🎭 Usar Receita de Exemplo (Demo)</button>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       TELA IA CARREGANDO
+  ══════════════════════════════════════════ -->
+  <div class="screen" id="s-ia-load">
+    <div class="tb"><h1>Analisando Receita</h1><p>Aguarde enquanto a IA trabalha...</p></div>
+    <div class="ct">
+      <div class="ia-wrap">
+        <div class="ia-spin"></div>
+        <div class="ia-h" id="iaLoadTxt">Lendo sua receita...</div>
+        <div class="ia-p">Identificando medicamentos, doses e horários prescritos.</div>
+        <div class="ia-steps">
+          <div class="ia-step" id="ist1"><div class="ia-step-ic">🔍</div>Processando imagem</div>
+          <div class="ia-step" id="ist2"><div class="ia-step-ic">🧠</div>Identificando medicamentos</div>
+          <div class="ia-step" id="ist3"><div class="ia-step-ic">⏰</div>Extraindo doses e horários</div>
+          <div class="ia-step" id="ist4"><div class="ia-step-ic">✅</div>Preparando revisão</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       TELA RESULTADO IA
+  ══════════════════════════════════════════ -->
+  <div class="screen" id="s-ia-res">
+    <div class="tb">
+      <button class="tb-back" onclick="App.go('camera')">← Refazer Foto</button>
+      <h1>Revise os Dados</h1>
+      <p id="iaResSubtxt"></p>
+    </div>
+    <div class="ct anim-d" id="iaResContent"></div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       TELA FORMULÁRIO (manual / editar)
+  ══════════════════════════════════════════ -->
+  <div class="screen" id="s-form">
+    <div class="tb">
+      <button class="tb-back" id="formBackBtn">← Voltar</button>
+      <h1 id="formTitle">Novo Remédio</h1>
+    </div>
+    <div class="ct">
+      <div class="card cp">
+
+        <div class="campo">
+          <label>Nome do remédio *</label>
+          <input type="text" id="fNome" placeholder="Ex: Losartana">
+        </div>
+        <div class="campo">
+          <label>Princípio ativo (opcional)</label>
+          <input type="text" id="fPrincipio" placeholder="Ex: Losartana Potássica">
+        </div>
+        <div class="two-col">
+          <div class="campo">
+            <label>Dose *</label>
+            <input type="text" id="fDose" placeholder="Ex: 50mg">
+          </div>
+          <div class="campo">
+            <label>Via *</label>
+            <select id="fVia">
+              <option value="oral">💊 Oral</option>
+              <option value="sublingual">👅 Sublingual</option>
+              <option value="topico">🩹 Tópico</option>
+              <option value="inalatorio">💨 Inalatório</option>
+              <option value="injetavel">💉 Injetável</option>
+            </select>
+          </div>
+        </div>
+        <div class="campo">
+          <label>Frequência *</label>
+          <select id="fFreq" onchange="App.onFreqChange()">
+            <option value="1">1× ao dia</option>
+            <option value="2">2× ao dia</option>
+            <option value="3">3× ao dia</option>
+            <option value="4">4× ao dia</option>
+            <option value="8h">A cada 8 horas</option>
+            <option value="12h">A cada 12 horas</option>
+            <option value="custom">Horários personalizados</option>
+          </select>
+        </div>
+        <div class="campo">
+          <label>Horários das doses *</label>
+          <div class="hora-chips" id="horaChips"></div>
+          <div style="margin-top:8px">
+            <input type="time" id="horaInput" style="width:130px;border-radius:10px;padding:10px 12px;font-size:15px;border:2px solid var(--c6);font-family:var(--f);background:var(--c7);color:var(--c1);outline:none">
+            <button onclick="App.adicionarHora()" style="margin-left:8px;background:var(--g3);color:var(--g4);border:none;border-radius:10px;padding:10px 14px;font-size:14px;font-weight:800;font-family:var(--f);cursor:pointer">+ Adicionar</button>
+          </div>
+        </div>
+        <div class="campo">
+          <label>Instruções (opcional)</label>
+          <textarea id="fInstrucoes" placeholder="Ex: Tomar com água, após o café da manhã..."></textarea>
+        </div>
+        <div class="two-col">
+          <div class="campo">
+            <label>Data início</label>
+            <input type="date" id="fInicio">
+          </div>
+          <div class="campo">
+            <label>Estoque atual</label>
+            <input type="number" id="fEstoque" placeholder="Ex: 30" min="0">
+          </div>
+        </div>
+        <div class="campo">
+          <label>Cor de identificação</label>
+          <div class="color-row" id="colorRow"></div>
+        </div>
+        <div class="campo">
+          <label>Ícone</label>
+          <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:6px" id="emojiRow"></div>
+        </div>
+
+      </div><!-- end card -->
+
+      <button class="btn btn-g" id="formSaveBtn" onclick="App.salvarForm()">💾 Salvar Remédio</button>
+      <button class="btn btn-vm" id="formDeleteBtn" style="display:none" onclick="App.confirmarExcluir()">🗑️ Excluir Remédio</button>
+      <div style="height:20px"></div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       TELA HISTÓRICO
+  ══════════════════════════════════════════ -->
+  <div class="screen" id="s-historico">
+    <div class="tb"><h1>Histórico</h1><p id="histMesTxt"></p></div>
+    <div class="ct anim-d" id="histContent"></div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       TELA CONFIGURAÇÕES
+  ══════════════════════════════════════════ -->
+  <div class="screen" id="s-config">
+    <div class="tb"><h1>Configurações</h1><p>Personalize o app para você</p></div>
+    <div class="ct anim-d" id="configContent"></div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       TELA DETALHE REMÉDIO
+  ══════════════════════════════════════════ -->
+  <div class="screen" id="s-detalhe">
+    <div class="tb">
+      <button class="tb-back" onclick="App.go('remedios')">← Meus Remédios</button>
+    </div>
+    <div id="detalheContent"></div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       NOTIFICAÇÃO OVERLAY
+  ══════════════════════════════════════════ -->
+  <div id="notifOv">
+    <div class="notif-sheet">
+      <div class="notif-ic" id="notifIc">💊</div>
+      <div class="notif-label">⏰ Hora do Medicamento</div>
+      <div class="notif-nm" id="notifNm">—</div>
+      <div class="notif-ds" id="notifDs">—</div>
+      <div class="notif-inst" id="notifInst">Tomar com água</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <button class="btn btn-g" style="font-size:19px;padding:19px" onclick="App.confirmarNotif()">✅ TOMEI!</button>
+        <button class="btn btn-w" onclick="App.fecharNotif()">⏱️ Lembrar em 15 minutos</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       MODAL BOTTOM SHEET
+  ══════════════════════════════════════════ -->
+  <div id="modal" onclick="App.fecharModal(event)">
+    <div class="modal-sh" id="modalContent">
+      <div class="modal-handle"></div>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+
+  <!-- TOAST -->
+  <div id="toast"></div>
+
+  <!-- NAVBAR -->
+  <div id="nav">
+    <button class="nb on" id="nb-home" onclick="App.go('home')">
+      <span class="nb-ic">🏠</span><span class="nb-lb">Início</span>
+    </button>
+    <button class="nb" id="nb-remedios" onclick="App.go('remedios')">
+      <span class="nb-ic">💊</span><span class="nb-lb">Remédios</span>
+    </button>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:3px">
+      <button class="nb-add" onclick="App.go('adicionar')">+</button>
+      <span style="font-size:10px;font-weight:800;color:var(--c5)">Adicionar</span>
+    </div>
+    <button class="nb" id="nb-historico" onclick="App.go('historico')">
+      <span class="nb-ic">📋</span><span class="nb-lb">Histórico</span>
+    </button>
+    <button class="nb" id="nb-config" onclick="App.go('config')">
+      <span class="nb-ic">⚙️</span><span class="nb-lb">Config.</span>
+    </button>
+  </div>
+
+</div><!-- #app -->
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════
+   MEDALERT — APLICAÇÃO COMPLETA
+   Autor: gerado com Claude (Anthropic)
+   Versão: 1.0
+   Armazenamento: localStorage
+   IA: Anthropic Claude API (vision)
+═══════════════════════════════════════════════════════════════════ */
+
+/* ── CONSTANTES ──────────────────────────────────────────────────── */
+const CORES = ['#E8F5EE','#EFF6FF','#FEF3C7','#F5F3FF','#FFF0F0','#F0FDF4','#FDF4FF','#FFF7ED'];
+const CORES_TEXT = ['#0F5235','#1D4ED8','#92400E','#5B21B6','#991B1B','#166534','#6B21A2','#9A3412'];
+const EMOJIS = ['💊','💉','🩺','🫀','🧠','👁️','🦷','🦴','🌡️','⭐','🍃','🔵'];
+const DIAS_SEMANA = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+/* ── BANCO DE DADOS LOCAL ────────────────────────────────────────── */
+const DB = {
+  get medicamentos() { try { return JSON.parse(localStorage.getItem('med_medicamentos')||'[]') } catch{ return [] } },
+  set medicamentos(v){ localStorage.setItem('med_medicamentos', JSON.stringify(v)) },
+  get registros()    { try { return JSON.parse(localStorage.getItem('med_registros')||'[]') } catch{ return [] } },
+  set registros(v)   { localStorage.setItem('med_registros', JSON.stringify(v)) },
+  get config()       { try { return JSON.parse(localStorage.getItem('med_config')||'{}') } catch{ return {} } },
+  set config(v)      { localStorage.setItem('med_config', JSON.stringify(v)) },
+  get apikey()       { return localStorage.getItem('med_apikey')||'' },
+  set apikey(v)      { localStorage.setItem('med_apikey', v) },
+
+  salvarMed(med) {
+    const list = this.medicamentos;
+    const idx = list.findIndex(m=>m.id===med.id);
+    if(idx>=0) list[idx]=med; else list.push(med);
+    this.medicamentos = list;
+  },
+  excluirMed(id) {
+    this.medicamentos = this.medicamentos.filter(m=>m.id!==id);
+    this.registros = this.registros.filter(r=>r.medId!==id);
+  },
+  registrarToma(medId, horario, status, horarioReal=null) {
+    const list = this.registros;
+    const hoje = new Date().toISOString().split('T')[0];
+    const ex = list.findIndex(r=>r.medId===medId && r.horario===horario && r.data===hoje);
+    const reg = { id: uid(), medId, data: hoje, horario, status, horarioReal: horarioReal||new Date().toTimeString().slice(0,5) };
+    if(ex>=0) list[ex]=reg; else list.push(reg);
+    this.registros = list;
+    // Atualizar estoque
+    const meds = this.medicamentos;
+    const m = meds.find(m=>m.id===medId);
+    if(m && m.estoque>0 && status==='tomado'){
+      m.estoque = Math.max(0, m.estoque-1);
+      this.medicamentos = meds;
+    }
+  },
+  getRegistrosDia(data) {
+    return this.registros.filter(r=>r.data===data);
+  },
+  getStatusTomaHoje(medId, horario) {
+    const hoje = new Date().toISOString().split('T')[0];
+    const reg = this.registros.find(r=>r.medId===medId && r.horario===horario && r.data===hoje);
+    return reg ? reg.status : null;
+  }
+};
+
+/* ── UTILITÁRIOS ─────────────────────────────────────────────────── */
+function uid() { return Date.now().toString(36)+Math.random().toString(36).slice(2) }
+
+function hojeStr() { return new Date().toISOString().split('T')[0] }
+
+function horaAtual() { return new Date().toTimeString().slice(0,5) }
+
+function minutosDeHoje(h) {
+  const [hh,mm] = h.split(':').map(Number);
+  return hh*60+mm;
+}
+
+function statusHorario(horario) {
+  const agora = minutosDeHoje(horaAtual());
+  const prog  = minutosDeHoje(horario);
+  const diff  = agora - prog;
+  if(diff < -5)  return 'pendente';
+  if(diff <= 60) return 'no-prazo';
+  return 'atrasado';
+}
+
+function proximoHorario(horarios) {
+  const agora = minutosDeHoje(horaAtual());
+  const futuros = horarios.filter(h => minutosDeHoje(h) > agora);
+  return futuros.length ? futuros[0] : horarios[0];
+}
+
+function corFundo(cor) { return CORES.includes(cor) ? cor : CORES[0] }
+function corTexto(cor) {
+  const i = CORES.indexOf(cor);
+  return i>=0 ? CORES_TEXT[i] : CORES_TEXT[0];
+}
+
+function calcularHorariosAuto(freq) {
+  const map = {
+    '1':  ['08:00'],
+    '2':  ['08:00','20:00'],
+    '3':  ['08:00','14:00','20:00'],
+    '4':  ['06:00','12:00','18:00','00:00'],
+    '8h': ['08:00','16:00','00:00'],
+    '12h':['08:00','20:00'],
+  };
+  return map[freq] || ['08:00'];
+}
+
+function saudacao() {
+  const h = new Date().getHours();
+  if(h<12) return '☀️ Bom dia,';
+  if(h<18) return '🌤️ Boa tarde,';
+  return '🌙 Boa noite,';
+}
+
+function formatarData(d) {
+  const meses = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+  const dias = ['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
+  return `${dias[d.getDay()]}, ${d.getDate()} de ${meses[d.getMonth()]} de ${d.getFullYear()}`;
+}
+
+function diasNoMes(ano, mes) { return new Date(ano, mes+1, 0).getDate() }
+function primeiroDia(ano, mes) { return new Date(ano, mes, 1).getDay() }
+
+/* ── APP PRINCIPAL ───────────────────────────────────────────────── */
+const App = (() => {
+  /* estado interno */
+  let telaAtual = 'home';
+  let editandoId = null;   // id do med em edição (null = novo)
+  let horasSelecionadas = [];
+  let corSelecionada = CORES[0];
+  let emojiSelecionado = '💊';
+  let notifMedId = null;
+  let notifHorario = null;
+  let calMes = new Date().getMonth();
+  let calAno = new Date().getFullYear();
+  let iaResultados = [];   // meds extraídos pela IA para revisão
+  let toastTimer = null;
+  let alertasTimer = null;
+
+  /* ── NAVEGAÇÃO ─────────────────────────────────────────────── */
+  function go(tela) {
+    if(telaAtual === tela) return;
+    document.getElementById('s-'+telaAtual)?.classList.remove('on');
+    document.getElementById('s-'+tela)?.classList.add('on');
+    telaAtual = tela;
+
+    // Nav bar highlight
+    ['home','remedios','historico','config'].forEach(t=>{
+      document.getElementById('nb-'+t)?.classList.toggle('on', t===tela);
+    });
+
+    // Renderizar tela
+    const renders = {
+      'home':      renderHome,
+      'remedios':  renderRemedios,
+      'historico': renderHistorico,
+      'config':    renderConfig,
+    };
+    if(renders[tela]) renders[tela]();
+  }
+
+  /* ── RELÓGIO ───────────────────────────────────────────────── */
+  function iniciarRelogio() {
+    function tick() {
+      const n = new Date();
+      document.getElementById('clockTxt').textContent =
+        String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0');
+    }
+    tick();
+    setInterval(tick, 10000);
+  }
+
+  /* ── ALERTAS AUTOMÁTICOS ───────────────────────────────────── */
+  function iniciarAlertas() {
+    if(alertasTimer) clearInterval(alertasTimer);
+    alertasTimer = setInterval(verificarAlertas, 30000);
+    verificarAlertas();
+  }
+
+  function verificarAlertas() {
+    const agora = horaAtual();
+    const meds = DB.medicamentos.filter(m=>m.ativo);
+    for(const m of meds) {
+      for(const h of (m.horarios||[])) {
+        const diff = minutosDeHoje(agora) - minutosDeHoje(h);
+        if(diff >= 0 && diff <= 1) {
+          const status = DB.getStatusTomaHoje(m.id, h);
+          if(!status) {
+            mostrarNotifMed(m, h);
+            return;
+          }
+        }
+      }
+    }
+  }
+
+  function mostrarNotifMed(med, horario) {
+    notifMedId = med.id;
+    notifHorario = horario;
+    const fundo = corFundo(med.cor);
+    document.getElementById('notifIc').style.background = fundo;
+    document.getElementById('notifIc').textContent = med.emoji || '💊';
+    document.getElementById('notifNm').textContent = med.nome;
+    document.getElementById('notifDs').textContent = med.dose + ' · ' + (med.via||'oral');
+    document.getElementById('notifInst').textContent = med.instrucoes || '💧 Tomar com água';
+    document.getElementById('notifOv').classList.add('on');
+  }
+
+  /* ── HOME ──────────────────────────────────────────────────── */
+  function renderHome() {
+    // Saudação
+    document.getElementById('saudacaoTxt').textContent = saudacao();
+    const cfg = DB.config;
+    document.getElementById('nomeUsuario').textContent = cfg.nome || 'Usuário';
+    document.getElementById('dataTxt').textContent = formatarData(new Date());
+
+    const meds = DB.medicamentos.filter(m=>m.ativo);
+    const regs = DB.getRegistrosDia(hojeStr());
+
+    // Calcular resumo
+    let tomados = 0, pendentes = 0, atrasados = 0;
+    meds.forEach(m => {
+      (m.horarios||[]).forEach(h => {
+        const st = DB.getStatusTomaHoje(m.id, h);
+        if(st==='tomado') tomados++;
+        else {
+          const hs = statusHorario(h);
+          if(hs==='atrasado') atrasados++;
+          else pendentes++;
+        }
+      });
+    });
+
+    const el = document.getElementById('homeContent');
+    el.innerHTML = '';
+
+    // Resumo bar
+    const resumo = document.createElement('div');
+    resumo.id = 'resumo';
+    resumo.innerHTML = `
+      <div class="ri"><span class="rn" style="color:var(--g)">${tomados}</span><span class="rl">Tomados</span></div>
+      <div class="rsep"></div>
+      <div class="ri"><span class="rn" style="color:var(--az)">${pendentes}</span><span class="rl">Pendentes</span></div>
+      <div class="rsep"></div>
+      <div class="ri"><span class="rn" style="color:var(--am)">${atrasados}</span><span class="rl">Atrasados</span></div>
+    `;
+    el.appendChild(resumo);
+
+    if(meds.length === 0) {
+      el.insertAdjacentHTML('beforeend', `
+        <div class="empty">
+          <div class="empty-ic">💊</div>
+          <div class="empty-h">Nenhum remédio cadastrado</div>
+          <div class="empty-p">Adicione seus medicamentos tocando no botão + abaixo</div>
+        </div>
+      `);
+      return;
+    }
+
+    // Separar por status
+    const tomadosList = [], pendentesList = [], atrasadosList = [];
+    meds.forEach(m => {
+      (m.horarios||[]).forEach(h => {
+        const st = DB.getStatusTomaHoje(m.id, h);
+        const entry = { med: m, horario: h, status: st };
+        if(st==='tomado') tomadosList.push(entry);
+        else if(statusHorario(h)==='atrasado') atrasadosList.push(entry);
+        else pendentesList.push(entry);
+      });
+    });
+
+    // Ordenar por horário
+    const sortH = arr => arr.sort((a,b)=>minutosDeHoje(a.horario)-minutosDeHoje(b.horario));
+    sortH(pendentesList); sortH(atrasadosList); sortH(tomadosList);
+
+    function cardMed(entry) {
+      const {med, horario, status} = entry;
+      const stH = status==='tomado' ? 'tomado' : statusHorario(horario);
+      const fundo = corFundo(med.cor);
+      const txt   = corTexto(med.cor);
+
+      let badgeHtml = '';
+      let btnClass = '';
+      let btnTxt = '';
+      let hrStyle = `background:${fundo}`;
+      let horaStyle = `color:${txt}`;
+
+      if(status==='tomado') {
+        badgeHtml = `<span class="badge bv">✅ Tomado às ${DB.getRegistrosDia(hojeStr()).find(r=>r.medId===med.id&&r.horario===horario)?.horarioReal||horario}</span>`;
+        btnClass = 'bc bc-ok'; btnTxt = '✅ Confirmado';
+      } else if(stH==='atrasado') {
+        badgeHtml = `<span class="badge bam">⚠️ Atrasado</span>`;
+        btnClass = 'bc bc-a'; btnTxt = '💊 TOMAR AGORA';
+      } else {
+        const diff = minutosDeHoje(horario) - minutosDeHoje(horaAtual());
+        const hh = Math.floor(diff/60), mm = diff%60;
+        const tempoTxt = hh>0 ? `Faltam ${hh}h${mm>0?mm+'min':''}` : diff>0 ? `Faltam ${mm} min` : 'Agora!';
+        badgeHtml = `<span class="badge baz">⏰ ${tempoTxt}</span>`;
+        btnClass = 'bc bc-p'; btnTxt = '💊 CONFIRMAR TOMA';
+      }
+
+      const div = document.createElement('div');
+      div.className = 'mc';
+      div.innerHTML = `
+        <div class="mc-h">
+          <div class="mc-em" style="background:${fundo}">${med.emoji||'💊'}</div>
+          <div>
+            <div class="mc-nm">${med.nome}</div>
+            <div class="mc-ds">${med.dose}${med.instrucoes?' · '+med.instrucoes.slice(0,30):''}${med.instrucoes&&med.instrucoes.length>30?'...':''}</div>
+          </div>
+        </div>
+        <div class="mc-hr" style="${hrStyle}">
+          <span class="mc-h-hora" style="${horaStyle}">${horario}</span>
+          <span>${badgeHtml}</span>
+        </div>
+        <button class="${btnClass}" data-id="${med.id}" data-horario="${horario}">${btnTxt}</button>
+      `;
+
+      // Click no card → notificação
+      div.querySelector('.mc-h').addEventListener('click', ()=>mostrarNotifMed(med, horario));
+
+      // Click no botão
+      const btn = div.querySelector('.bc');
+      if(!btn.classList.contains('bc-ok')) {
+        btn.addEventListener('click', e=>{
+          e.stopPropagation();
+          const id = btn.dataset.id;
+          const hr = btn.dataset.horario;
+          DB.registrarToma(id, hr, 'tomado');
+          btn.className = 'bc bc-ok ripple';
+          btn.textContent = '✅ Confirmado';
+          // Atualizar badge
+          const mc_hr = btn.closest('.mc').querySelector('.mc-hr');
+          mc_hr.innerHTML = `<span class="mc-h-hora" style="${horaStyle}">${hr}</span> <span class="badge bv">✅ Tomado agora</span>`;
+          toast('✅ Medicamento confirmado! Parabéns!');
+          // Atualizar resumo
+          setTimeout(renderHome, 800);
+        });
+      }
+      return div;
+    }
+
+    // Renderizar seções
+    if(atrasadosList.length) {
+      el.insertAdjacentHTML('beforeend', `<div class="st">⚠️ Atrasados</div>`);
+      atrasadosList.forEach(e => el.appendChild(cardMed(e)));
+    }
+    if(pendentesList.length) {
+      el.insertAdjacentHTML('beforeend', `<div class="st">⏰ Próximos horários</div>`);
+      pendentesList.forEach(e => el.appendChild(cardMed(e)));
+    }
+    if(tomadosList.length) {
+      el.insertAdjacentHTML('beforeend', `<div class="st">✅ Já tomados hoje</div>`);
+      tomadosList.forEach(e => el.appendChild(cardMed(e)));
+    }
+
+    // Alertas estoque
+    DB.medicamentos.filter(m=>m.ativo && m.estoque>0 && m.estoque<7).forEach(m=>{
+      el.insertAdjacentHTML('beforeend', `
+        <div class="est-alerta">
+          <span style="font-size:26px">⚠️</span>
+          <div class="est-txt">
+            <h4>Estoque baixo: ${m.nome}</h4>
+            <p>Restam ${m.estoque} comprimidos (aprox. ${Math.floor(m.estoque/(m.horarios?.length||1))} dias)</p>
+          </div>
+        </div>
+      `);
+    });
+  }
+
+  /* ── REMÉDIOS ──────────────────────────────────────────────── */
+  function renderRemedios() {
+    const meds = DB.medicamentos;
+    const el = document.getElementById('remediosContent');
+    el.innerHTML = '';
+
+    document.getElementById('remCountTxt').textContent =
+      meds.filter(m=>m.ativo).length + ' medicamentos de uso contínuo';
+
+    if(meds.length === 0) {
+      el.innerHTML = `
+        <div class="empty">
+          <div class="empty-ic">💊</div>
+          <div class="empty-h">Nenhum remédio cadastrado</div>
+          <div class="empty-p">Toque no + para adicionar seu primeiro medicamento</div>
+        </div>`;
+      return;
+    }
+
+    // Alertas estoque
+    meds.filter(m=>m.ativo && m.estoque>0 && m.estoque<7).forEach(m=>{
+      el.insertAdjacentHTML('beforeend', `
+        <div class="est-alerta">
+          <span style="font-size:26px">⚠️</span>
+          <div class="est-txt">
+            <h4>Estoque baixo: ${m.nome}</h4>
+            <p>Restam ${m.estoque} comprimido(s) (${Math.floor(m.estoque/(m.horarios?.length||1))} dias aprox.)</p>
+          </div>
+        </div>`);
+    });
+
+    // Separar ativos / inativos
+    const ativos = meds.filter(m=>m.ativo);
+    const inativos = meds.filter(m=>!m.ativo);
+
+    function renderItem(m) {
+      const prox = proximoHorario(m.horarios||['--:--']);
+      const fundo = corFundo(m.cor);
+      const item = document.createElement('div');
+      item.className = 'ri-item';
+      item.innerHTML = `
+        <div class="ri-em" style="background:${fundo}">${m.emoji||'💊'}</div>
+        <div class="ri-dados">
+          <div class="ri-nm">${m.nome}</div>
+          <div class="ri-ds">${m.dose} · ${(m.horarios||[]).length}× ao dia${!m.ativo?' · ⏸️ Pausado':''}</div>
+        </div>
+        <div class="ri-prox">
+          <div class="ri-hr">${prox}</div>
+          <div class="ri-lb">próxima dose</div>
+        </div>
+      `;
+      item.addEventListener('click', ()=>renderDetalhe(m.id));
+      return item;
+    }
+
+    if(ativos.length) {
+      el.insertAdjacentHTML('beforeend', `<div class="st">💊 Ativos</div>`);
+      ativos.forEach(m=>el.appendChild(renderItem(m)));
+    }
+    if(inativos.length) {
+      el.insertAdjacentHTML('beforeend', `<div class="st">⏸️ Pausados</div>`);
+      inativos.forEach(m=>el.appendChild(renderItem(m)));
+    }
+  }
+
+  /* ── DETALHE REMÉDIO ────────────────────────────────────────── */
+  function renderDetalhe(id) {
+    const m = DB.medicamentos.find(m=>m.id===id);
+    if(!m) return;
+    const fundo = corFundo(m.cor);
+    const txt   = corTexto(m.cor);
+
+    const el = document.getElementById('detalheContent');
+    el.innerHTML = `
+      <div class="det-hero" style="background:var(--g)">
+        <div class="det-ic" style="background:${fundo}">${m.emoji||'💊'}</div>
+        <div>
+          <div class="det-h">${m.nome}</div>
+          <div class="det-p">${m.principio||''} ${m.principio?'·':''} ${m.dose} · ${m.via||'oral'}</div>
+        </div>
+      </div>
+      <div class="ct">
+        <div class="det-grid">
+          <div class="det-stat"><div class="det-sl">Dose</div><div class="det-sv">${m.dose}</div></div>
+          <div class="det-stat"><div class="det-sl">Via</div><div class="det-sv">${(m.via||'oral').charAt(0).toUpperCase()+(m.via||'oral').slice(1)}</div></div>
+          <div class="det-stat"><div class="det-sl">Frequência</div><div class="det-sv">${(m.horarios||[]).length}× ao dia</div></div>
+          <div class="det-stat"><div class="det-sl">Estoque</div><div class="det-sv">${m.estoque>0?m.estoque+' comp.':'—'}</div></div>
+        </div>
+        <div class="card cp">
+          <div class="st" style="margin-top:0">⏰ Horários</div>
+          <div class="hor-tags">${(m.horarios||[]).map(h=>`<span class="hor-tag">${h}</span>`).join('')}</div>
+          ${m.instrucoes?`<div style="margin-top:12px;font-size:14px;color:var(--c3);font-weight:600">📝 ${m.instrucoes}</div>`:''}
+        </div>
+        <div class="card cp">
+          <div class="st" style="margin-top:0">📅 Início do tratamento</div>
+          <div style="font-size:16px;font-weight:800;color:var(--c1)">${m.inicio||'Não informado'}</div>
+        </div>
+        <button class="btn btn-g" onclick="App.irFormManual('${m.id}')">✏️ Editar Remédio</button>
+        <button class="btn btn-w" onclick="App.togglePausar('${m.id}')" style="margin-top:10px">
+          ${m.ativo?'⏸️ Pausar alertas':'▶️ Reativar alertas'}
+        </button>
+      </div>
+    `;
+    go('detalhe');
+  }
+
+  /* ── HISTÓRICO ─────────────────────────────────────────────── */
+  function renderHistorico() {
+    const el = document.getElementById('histContent');
+    el.innerHTML = '';
+    document.getElementById('histMesTxt').textContent =
+      MESES[calMes] + ' de ' + calAno;
+
+    // Calcular adesão do mês
+    const registrosMes = DB.registros.filter(r => {
+      const d = new Date(r.data);
+      return d.getMonth()===calMes && d.getFullYear()===calAno;
+    });
+    const totalMes = registrosMes.length;
+    const tomadosMes = registrosMes.filter(r=>r.status==='tomado').length;
+    const pct = totalMes>0 ? Math.round(tomadosMes/totalMes*100) : 0;
+
+    // Adesão card
+    const adCard = document.createElement('div');
+    adCard.className = 'ad-card';
+    adCard.innerHTML = `
+      <div class="st" style="margin-top:0">📊 Adesão do mês</div>
+      <div class="ad-top"><span class="ad-pct" id="adPct">0%</span><span class="ad-de">dos remédios no prazo</span></div>
+      <div class="ad-desc">${tomadosMes} de ${totalMes} doses confirmadas</div>
+      <div class="prog"><div class="prog-f" id="progBar" style="width:0%"></div></div>
+    `;
+    el.appendChild(adCard);
+    setTimeout(()=>{
+      document.getElementById('adPct').textContent = pct+'%';
+      document.getElementById('progBar').style.width = pct+'%';
+    }, 100);
+
+    // Calendário
+    const calCard = document.createElement('div');
+    calCard.className = 'cal-card';
+    calCard.innerHTML = `
+      <div class="cal-mes">
+        <button class="cal-nav" onclick="App.calMudar(-1)">‹</button>
+        <span class="cal-mes-txt">${MESES[calMes]} ${calAno}</span>
+        <button class="cal-nav" onclick="App.calMudar(1)">›</button>
+      </div>
+      <div class="cal-days-header">
+        ${DIAS_SEMANA.map(d=>`<div class="cal-dh">${d}</div>`).join('')}
+      </div>
+      <div class="cal-grid" id="calGrid"></div>
+    `;
+    el.appendChild(calCard);
+
+    const grid = calCard.querySelector('#calGrid');
+    const total = diasNoMes(calAno, calMes);
+    const primeiro = primeiroDia(calAno, calMes);
+    const hoje = new Date();
+
+    for(let i=0;i<primeiro;i++) {
+      const v = document.createElement('div');
+      v.className = 'cal-d vazio';
+      grid.appendChild(v);
+    }
+
+    for(let d=1;d<=total;d++) {
+      const dataStr = `${calAno}-${String(calMes+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const regs = DB.registros.filter(r=>r.data===dataStr);
+      const eHoje = hoje.getDate()===d && hoje.getMonth()===calMes && hoje.getFullYear()===calAno;
+      const eFuturo = new Date(dataStr) > hoje && !eHoje;
+
+      let cls = 'cal-d';
+      if(eHoje) cls+=' hoje';
+      else if(!eFuturo && regs.length>0) {
+        const ok = regs.filter(r=>r.status==='tomado').length;
+        const pctDia = ok/regs.length;
+        if(pctDia>=0.8) cls+=' dok';
+        else if(pctDia>=0.4) cls+=' dparcial';
+        else cls+=' druim';
+      }
+
+      const div = document.createElement('div');
+      div.className = cls;
+      div.innerHTML = `<span>${d}</span>${regs.length&&!eFuturo?`<span class="cal-dot"></span>`:''}`;
+      if(!eFuturo && regs.length) div.addEventListener('click',()=>mostrarDia(dataStr));
+      grid.appendChild(div);
+    }
+
+    // Histórico de hoje
+    const hoje2 = hojeStr();
+    const regsHoje = DB.getRegistrosDia(hoje2);
+    if(regsHoje.length) {
+      el.insertAdjacentHTML('beforeend',`<div class="st">📋 Hoje, ${new Date().getDate()} de ${MESES[new Date().getMonth()]}</div>`);
+      regsHoje.forEach(r=>{
+        const m = DB.medicamentos.find(m=>m.id===r.medId);
+        if(!m) return;
+        const fundo = corFundo(m.cor);
+        const b = r.status==='tomado'?'badge bv':'badge bam';
+        const txt = r.status==='tomado'?'✅ Tomado':'⚠️ '+r.status.charAt(0).toUpperCase()+r.status.slice(1);
+        el.insertAdjacentHTML('beforeend',`
+          <div class="hi">
+            <div class="hi-l">
+              <div style="width:38px;height:38px;border-radius:10px;background:${fundo};display:flex;align-items:center;justify-content:center;font-size:20px">${m.emoji||'💊'}</div>
+              <div>
+                <div class="hi-nm">${m.nome} ${m.dose}</div>
+                <div class="hi-hr">Programado ${r.horario}${r.horarioReal?' · Tomado '+r.horarioReal:''}</div>
+              </div>
+            </div>
+            <span class="${b}">${txt}</span>
+          </div>`);
+      });
+    } else {
+      el.insertAdjacentHTML('beforeend',`<div class="st">📋 Hoje</div>
+        <div style="text-align:center;padding:30px;color:var(--c3);font-size:15px;font-weight:600">Nenhum registro para hoje ainda</div>`);
+    }
+
+    el.insertAdjacentHTML('beforeend',`
+      <button class="btn btn-g" onclick="App.exportarPDF()">📄 Exportar Histórico em PDF</button>
+      <div style="height:16px"></div>
+    `);
+  }
+
+  function mostrarDia(dataStr) {
+    const regs = DB.registros.filter(r=>r.data===dataStr);
+    const d = new Date(dataStr+'T12:00:00');
+    const tit = `${d.getDate()} de ${MESES[d.getMonth()]} de ${d.getFullYear()}`;
+
+    let html = `<div class="modal-title">📅 ${tit}</div>`;
+    if(!regs.length) { html += `<div style="color:var(--c3);font-size:15px;font-weight:600">Sem registros neste dia.</div>`; }
+    else {
+      regs.forEach(r=>{
+        const m = DB.medicamentos.find(m=>m.id===r.medId);
+        if(!m) return;
+        const fundo = corFundo(m.cor);
+        const b = r.status==='tomado'?'badge bv':'badge bam';
+        const txt = r.status==='tomado'?'✅ Tomado':'⚠️ '+r.status;
+        html += `
+          <div class="hi">
+            <div class="hi-l">
+              <div style="width:38px;height:38px;border-radius:10px;background:${fundo};display:flex;align-items:center;justify-content:center;font-size:20px">${m.emoji||'💊'}</div>
+              <div>
+                <div class="hi-nm">${m.nome} ${m.dose}</div>
+                <div class="hi-hr">Programado ${r.horario}${r.horarioReal?' · Confirmado '+r.horarioReal:''}</div>
+              </div>
+            </div>
+            <span class="${b}">${txt}</span>
+          </div>`;
+      });
+    }
+    abrirModal(html);
+  }
+
+  /* ── CONFIGURAÇÕES ─────────────────────────────────────────── */
+  function renderConfig() {
+    const cfg = DB.config;
+    const el = document.getElementById('configContent');
+    el.innerHTML = `
+      <div class="st">👤 Meu Perfil</div>
+      <div class="cfg-sec">
+        <div class="cfg-row" onclick="App.editarNome()">
+          <div class="cfg-l"><span class="cfg-ic">👤</span><div><div class="cfg-h">Nome</div><div class="cfg-p">${cfg.nome||'Não informado'}</div></div></div>
+          <span class="cfg-v">›</span>
+        </div>
+        <div class="cfg-row" onclick="App.editarCuidador()">
+          <div class="cfg-l"><span class="cfg-ic">📞</span><div><div class="cfg-h">Contato do cuidador</div><div class="cfg-p">${cfg.cuidador||'Não informado'}</div></div></div>
+          <span class="cfg-v">›</span>
+        </div>
+      </div>
+
+      <div class="st">🔔 Alertas</div>
+      <div class="cfg-sec">
+        <div class="cfg-row">
+          <div class="cfg-l"><span class="cfg-ic">🔔</span><div><div class="cfg-h">Som dos alertas</div><div class="cfg-p">Ativa notificações</div></div></div>
+          <div class="toggle ${cfg.som!==false?'on':''}" onclick="App.toggleCfg('som',this)"></div>
+        </div>
+        <div class="cfg-row">
+          <div class="cfg-l"><span class="cfg-ic">📳</span><div><div class="cfg-h">Vibração</div><div class="cfg-p">Junto com o som</div></div></div>
+          <div class="toggle ${cfg.vibracao!==false?'on':''}" onclick="App.toggleCfg('vibracao',this)"></div>
+        </div>
+        <div class="cfg-row">
+          <div class="cfg-l"><span class="cfg-ic">🌙</span><div><div class="cfg-h">Modo silencioso</div><div class="cfg-p">22h às 7h — só vibração</div></div></div>
+          <div class="toggle ${cfg.silencioso!==false?'on':''}" onclick="App.toggleCfg('silencioso',this)"></div>
+        </div>
+        <div class="cfg-row">
+          <div class="cfg-l"><span class="cfg-ic">⏱️</span><div><div class="cfg-h">Lembrete de reforço</div><div class="cfg-p">Se não confirmar em 15 min</div></div></div>
+          <div class="toggle ${cfg.reforco!==false?'on':''}" onclick="App.toggleCfg('reforco',this)"></div>
+        </div>
+      </div>
+
+      <div class="st">🤖 Inteligência Artificial</div>
+      <div class="cfg-sec">
+        <div class="cfg-row" onclick="App.editarApiKey()">
+          <div class="cfg-l"><span class="cfg-ic">🔑</span><div><div class="cfg-h">Chave API (Claude)</div><div class="cfg-p">${DB.apikey?'Configurada ✅':'Não configurada'}</div></div></div>
+          <span class="cfg-v">›</span>
+        </div>
+      </div>
+
+      <div class="st">♿ Acessibilidade</div>
+      <div class="cfg-sec">
+        <div class="cfg-row" onclick="App.ajustarFonte()">
+          <div class="cfg-l"><span class="cfg-ic">🔠</span><div><div class="cfg-h">Tamanho da fonte</div><div class="cfg-p">${cfg.fonte||'Normal'}</div></div></div>
+          <span class="cfg-v">›</span>
+        </div>
+        <div class="cfg-row" onclick="App.toggleTema()">
+          <div class="cfg-l"><span class="cfg-ic">🌗</span><div><div class="cfg-h">Tema</div><div class="cfg-p">${cfg.tema||'Claro'}</div></div></div>
+          <span class="cfg-v">›</span>
+        </div>
+      </div>
+
+      <div class="st">🗑️ Dados</div>
+      <div class="cfg-sec">
+        <div class="cfg-row" onclick="App.exportarPDF()">
+          <div class="cfg-l"><span class="cfg-ic">📄</span><div><div class="cfg-h">Exportar histórico</div><div class="cfg-p">Baixar relatório em PDF</div></div></div>
+          <span class="cfg-v">›</span>
+        </div>
+        <div class="cfg-row" onclick="App.confirmarLimpar()">
+          <div class="cfg-l"><span class="cfg-ic">🗑️</span><div><div class="cfg-h" style="color:var(--vm)">Limpar todos os dados</div><div class="cfg-p">Remove todos os remédios e histórico</div></div></div>
+          <span class="cfg-v">›</span>
+        </div>
+      </div>
+      <div style="text-align:center;font-size:12px;color:var(--c4);padding:16px 0;font-weight:600">MedAlert v1.0 · Feito com ❤️ para sua saúde</div>
+    `;
+  }
+
+  /* ── FORMULÁRIO ─────────────────────────────────────────────── */
+  function irFormManual(id) {
+    editandoId = id;
+    const m = id ? DB.medicamentos.find(m=>m.id===id) : null;
+
+    document.getElementById('formTitle').textContent = m ? 'Editar Remédio' : 'Novo Remédio';
+    document.getElementById('formBackBtn').onclick = ()=>voltarDoForm();
+    document.getElementById('formDeleteBtn').style.display = m ? 'flex' : 'none';
+
+    // Preencher campos
+    document.getElementById('fNome').value = m?.nome || '';
+    document.getElementById('fPrincipio').value = m?.principio || '';
+    document.getElementById('fDose').value = m?.dose || '';
+    document.getElementById('fVia').value = m?.via || 'oral';
+    document.getElementById('fInstrucoes').value = m?.instrucoes || '';
+    document.getElementById('fInicio').value = m?.inicio || hojeStr();
+    document.getElementById('fEstoque').value = m?.estoque || '';
+
+    horasSelecionadas = m ? [...(m.horarios||['08:00'])] : ['08:00'];
+    corSelecionada = m?.cor || CORES[0];
+    emojiSelecionado = m?.emoji || '💊';
+
+    // Frequência
+    const freqEl = document.getElementById('fFreq');
+    if(m) freqEl.value = 'custom';
+    renderHoraChips();
+    renderColorRow();
+    renderEmojiRow();
+    go('form');
+  }
+
+  function voltarDoForm() {
+    if(editandoId) go('detalhe');
+    else go('adicionar');
+  }
+
+  function onFreqChange() {
+    const freq = document.getElementById('fFreq').value;
+    if(freq !== 'custom') {
+      horasSelecionadas = calcularHorariosAuto(freq);
+      renderHoraChips();
+    }
+  }
+
+  function renderHoraChips() {
+    const c = document.getElementById('horaChips');
+    c.innerHTML = '';
+    horasSelecionadas.sort().forEach(h=>{
+      const chip = document.createElement('span');
+      chip.className = 'hora-chip';
+      chip.innerHTML = `🕐 ${h} <span class="xh" onclick="App.removerHora('${h}')">✕</span>`;
+      c.appendChild(chip);
+    });
+  }
+
+  function adicionarHora() {
+    const val = document.getElementById('horaInput').value;
+    if(!val) return;
+    if(horasSelecionadas.includes(val)) { toast('Horário já adicionado!'); return; }
+    if(horasSelecionadas.length >= 6) { toast('Máximo de 6 horários por medicamento'); return; }
+    horasSelecionadas.push(val);
+    horasSelecionadas.sort();
+    renderHoraChips();
+  }
+
+  function removerHora(h) {
+    if(horasSelecionadas.length <= 1) { toast('Precisa ter pelo menos 1 horário'); return; }
+    horasSelecionadas = horasSelecionadas.filter(x=>x!==h);
+    renderHoraChips();
+  }
+
+  function renderColorRow() {
+    const el = document.getElementById('colorRow');
+    el.innerHTML = CORES.map((c,i)=>`
+      <div class="cdot ${c===corSelecionada?'sel':''}" style="background:${c};border-color:${CORES_TEXT[i]}" onclick="App.selecionarCor('${c}')"></div>
+    `).join('');
+  }
+
+  function selecionarCor(c) {
+    corSelecionada = c;
+    renderColorRow();
+  }
+
+  function renderEmojiRow() {
+    const el = document.getElementById('emojiRow');
+    el.innerHTML = EMOJIS.map(e=>`
+      <span onclick="App.selecionarEmoji('${e}')" style="
+        font-size:28px;cursor:pointer;padding:8px;border-radius:12px;
+        background:${e===emojiSelecionado?'var(--g3)':'transparent'};
+        border:2px solid ${e===emojiSelecionado?'var(--g)':'transparent'};
+        transition:all .15s;
+      ">${e}</span>
+    `).join('');
+  }
+
+  function selecionarEmoji(e) {
+    emojiSelecionado = e;
+    renderEmojiRow();
+  }
+
+  function salvarForm() {
+    const nome = document.getElementById('fNome').value.trim();
+    const dose = document.getElementById('fDose').value.trim();
+    if(!nome) { toast('⚠️ Informe o nome do remédio'); return; }
+    if(!dose) { toast('⚠️ Informe a dose'); return; }
+    if(!horasSelecionadas.length) { toast('⚠️ Adicione pelo menos um horário'); return; }
+
+    const m = {
+      id: editandoId || uid(),
+      nome,
+      principio: document.getElementById('fPrincipio').value.trim(),
+      dose,
+      via: document.getElementById('fVia').value,
+      instrucoes: document.getElementById('fInstrucoes').value.trim(),
+      inicio: document.getElementById('fInicio').value || hojeStr(),
+      estoque: parseInt(document.getElementById('fEstoque').value)||0,
+      horarios: horasSelecionadas,
+      cor: corSelecionada,
+      emoji: emojiSelecionado,
+      ativo: true,
+      continuo: true,
+      criado: editandoId ? (DB.medicamentos.find(m=>m.id===editandoId)?.criado||Date.now()) : Date.now(),
+    };
+
+    DB.salvarMed(m);
+    localStorage.setItem('med_usuario_real', '1'); // Marcar como usuário real
+    toast(editandoId ? '✅ Remédio atualizado!' : '✅ Remédio cadastrado! Alertas configurados.');
+    editandoId = null;
+    go('remedios');
+    renderRemedios();
+  }
+
+  function confirmarExcluir() {
+    abrirModal(`
+      <div class="modal-title">🗑️ Excluir Remédio?</div>
+      <p style="font-size:15px;color:var(--c3);margin-bottom:20px;font-weight:600;line-height:1.5">
+        Esta ação removerá o remédio e todo o seu histórico. Não pode ser desfeita.
+      </p>
+      <button class="btn btn-vm" onclick="App.excluirMed()">🗑️ Sim, excluir</button>
+      <button class="btn btn-w" onclick="App.fecharModal()">Cancelar</button>
+    `);
+  }
+
+  function excluirMed() {
+    if(!editandoId) return;
+    DB.excluirMed(editandoId);
+    editandoId = null;
+    fecharModal();
+    toast('Remédio excluído.');
+    go('remedios');
+    renderRemedios();
+  }
+
+  /* ── CÂMERA / IA ────────────────────────────────────────────── */
+  function irCamera() {
+    const key = DB.apikey;
+    document.getElementById('apikeyInput').value = key;
+    document.getElementById('apikeyWrap').style.display = key ? 'none' : 'block';
+    go('camera');
+  }
+
+  function onFotoSelecionada(input) {
+    const file = input.files[0];
+    if(!file) return;
+
+    // Salvar API key se foi informada
+    const k = document.getElementById('apikeyInput').value.trim();
+    if(k) DB.apikey = k;
+
+    if(!DB.apikey) {
+      toast('⚠️ Informe sua chave API Anthropic antes de tirar a foto');
+      document.getElementById('apikeyWrap').style.display = 'block';
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = e => processarImagemIA(e.target.result.split(',')[1], file.type);
+    reader.readAsDataURL(file);
+    input.value = '';
+  }
+
+  async function processarImagemIA(base64, mimeType) {
+    go('ia-load');
+    animarSteps();
+
+    try {
+      const prompt = `Você é um assistente farmacêutico. Analise esta imagem de receita médica e extraia todos os medicamentos prescritos.
+
+Retorne APENAS um JSON válido (sem markdown, sem explicações) com este formato exato:
+{
+  "medicamentos": [
+    {
+      "nome": "Nome do medicamento",
+      "principio_ativo": "Princípio ativo se visível, senão string vazia",
+      "dose": "Dose completa ex: 50mg",
+      "via": "oral|sublingual|topico|inalatorio|injetavel",
+      "frequencia_texto": "Descrição da frequência como na receita",
+      "frequencia_tipo": "1|2|3|4|8h|12h",
+      "horarios_sugeridos": ["08:00"],
+      "instrucoes": "Instruções especiais se houver, senão string vazia",
+      "confianca": 85
+    }
+  ]
+}
+
+Regras:
+- confianca é de 0 a 100 — reduza se a letra for ilegível ou o campo não estiver claro
+- horarios_sugeridos: distribua igualmente baseado na frequência
+- se não conseguir identificar nenhum medicamento, retorne {"medicamentos": []}`;
+
+      const resp = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': DB.apikey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify({
+          model: 'claude-opus-4-5',
+          max_tokens: 1500,
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'image', source: { type: 'base64', media_type: mimeType||'image/jpeg', data: base64 } },
+              { type: 'text', text: prompt }
+            ]
+          }]
+        })
+      });
+
+      if(!resp.ok) {
+        const err = await resp.json().catch(()=>({}));
+        const status = resp.status;
+        const msg = err.error?.message || '';
+
+        if(status === 401) {
+          go('camera');
+          // Chave inválida — abrir tela de configuração da chave
+          toast('❌ Chave API inválida! Vá em Configurações → Chave API para corrigir.');
+          setTimeout(() => {
+            go('config');
+            renderConfig();
+            setTimeout(() => App.editarApiKey(), 500);
+          }, 2000);
+          return;
+        } else if(status === 402 || (msg && msg.toLowerCase().includes('credit'))) {
+          go('camera');
+          toast('❌ Sem créditos na conta Anthropic. Acesse console.anthropic.com → Billing para adicionar.');
+          return;
+        } else if(status === 429) {
+          go('camera');
+          toast('⚠️ Muitas requisições. Aguarde 1 minuto e tente novamente.');
+          return;
+        } else {
+          throw new Error(msg || `Erro ${status}`);
+        }
+      }
+
+      const data = await resp.json();
+      const txt = data.content?.[0]?.text || '{"medicamentos":[]}';
+      const clean = txt.replace(/```json|```/g,'').trim();
+      const resultado = JSON.parse(clean);
+
+      iaResultados = resultado.medicamentos || [];
+      if(!iaResultados.length) throw new Error('Nenhum medicamento encontrado na imagem.');
+
+      renderIAResultado();
+
+    } catch(e) {
+      go('camera');
+      toast('❌ Erro: '+(e.message||'Falha ao processar receita'));
+      console.error(e);
+    }
+  }
+
+  function animarSteps() {
+    [1,2,3,4].forEach((n,i)=>{
+      setTimeout(()=>{
+        document.getElementById('ist'+n)?.classList.add('done');
+      }, (i+1)*900);
+    });
+  }
+
+  function simularReceita() {
+    go('ia-load');
+    animarSteps();
+    setTimeout(()=>{
+      iaResultados = [
+        {
+          nome: 'Omeprazol',
+          principio_ativo: 'Omeprazol',
+          dose: '20mg',
+          via: 'oral',
+          frequencia_texto: '1 vez ao dia em jejum',
+          frequencia_tipo: '1',
+          horarios_sugeridos: ['07:00'],
+          instrucoes: 'Tomar 30 min antes do café da manhã',
+          confianca: 95
+        },
+        {
+          nome: 'Escitalopram',
+          principio_ativo: 'Escitalopram',
+          dose: '10mg',
+          via: 'oral',
+          frequencia_texto: '1 vez ao dia à noite',
+          frequencia_tipo: '1',
+          horarios_sugeridos: ['22:00'],
+          instrucoes: 'Tomar antes de dormir',
+          confianca: 58
+        }
+      ];
+      renderIAResultado();
+    }, 4200);
+  }
+
+  function renderIAResultado() {
+    document.getElementById('iaResSubtxt').textContent =
+      `Encontramos ${iaResultados.length} remédio${iaResultados.length>1?'s':''} — revise antes de salvar`;
+
+    const el = document.getElementById('iaResContent');
+    el.innerHTML = '';
+
+    el.insertAdjacentHTML('beforeend', `
+      <div class="ia-aviso">
+        <span style="font-size:20px">🤖</span>
+        <span>Verifique se os dados estão corretos. Campos marcados com ⚠️ precisam de atenção especial.</span>
+      </div>`);
+
+    iaResultados.forEach((med, idx) => {
+      const alta = med.confianca >= 70;
+      const card = document.createElement('div');
+      card.className = 'ia-res-card';
+      card.innerHTML = `
+        <div class="ia-res-h">
+          <span class="ia-res-titulo">💊 Remédio ${idx+1}</span>
+          <span class="ia-conf-badge ${alta?'icba':'icbb'}">${alta?'✅':'⚠️'} ${med.confianca}% confiança</span>
+        </div>
+        <div class="campo">
+          <label>Nome do remédio</label>
+          <input type="text" id="ia_nome_${idx}" value="${med.nome}">
+        </div>
+        <div class="two-col">
+          <div class="campo">
+            <label class="${alta?'':'wl'}">${alta?'Dose':'⚠️ Dose (verificar)'}</label>
+            <input type="text" id="ia_dose_${idx}" value="${med.dose}" class="${alta?'':'wi'}">
+            ${!alta?`<div class="campo-hint">⚠️ Confirme na receita original</div>`:''}
+          </div>
+          <div class="campo">
+            <label>Via</label>
+            <select id="ia_via_${idx}">
+              ${['oral','sublingual','topico','inalatorio','injetavel'].map(v=>
+                `<option value="${v}" ${v===med.via?'selected':''}>${v.charAt(0).toUpperCase()+v.slice(1)}</option>`
+              ).join('')}
+            </select>
+          </div>
+        </div>
+        <div class="campo">
+          <label>Horários</label>
+          <div class="hora-chips">
+            ${(med.horarios_sugeridos||['08:00']).map(h=>`<span class="hora-chip">🕐 ${h}</span>`).join('')}
+          </div>
+        </div>
+        <div class="campo">
+          <label>Instruções</label>
+          <input type="text" id="ia_inst_${idx}" value="${med.instrucoes||''}">
+        </div>
+      `;
+      el.appendChild(card);
+    });
+
+    const btnSalvar = document.createElement('button');
+    btnSalvar.className = 'btn btn-g';
+    btnSalvar.style.fontSize = '18px';
+    btnSalvar.textContent = `💾 Salvar ${iaResultados.length} Remédio${iaResultados.length>1?'s':''}`;
+    btnSalvar.onclick = salvarResultadoIA;
+    el.appendChild(btnSalvar);
+    el.insertAdjacentHTML('beforeend','<div style="height:20px"></div>');
+
+    go('ia-res');
+  }
+
+  function salvarResultadoIA() {
+    iaResultados.forEach((med, idx) => {
+      const nome = document.getElementById(`ia_nome_${idx}`)?.value.trim();
+      const dose = document.getElementById(`ia_dose_${idx}`)?.value.trim();
+      const via  = document.getElementById(`ia_via_${idx}`)?.value;
+      const inst = document.getElementById(`ia_inst_${idx}`)?.value.trim();
+      if(!nome||!dose) return;
+      DB.salvarMed({
+        id: uid(),
+        nome, dose, via, instrucoes: inst,
+        principio: med.principio_ativo||'',
+        horarios: med.horarios_sugeridos||['08:00'],
+        inicio: hojeStr(),
+        estoque: 0,
+        cor: CORES[Math.floor(Math.random()*CORES.length)],
+        emoji: EMOJIS[Math.floor(Math.random()*EMOJIS.length)],
+        ativo: true, continuo: true, criado: Date.now()
+      });
+    });
+    localStorage.setItem('med_usuario_real', '1'); // Marcar como usuário real
+    toast(`✅ ${iaResultados.length} remédio${iaResultados.length>1?'s':''} cadastrado${iaResultados.length>1?'s':''}!`);
+    iaResultados = [];
+    go('remedios');
+    renderRemedios();
+  }
+
+  /* ── NOTIFICAÇÃO ────────────────────────────────────────────── */
+  function confirmarNotif() {
+    if(!notifMedId || !notifHorario) return;
+    DB.registrarToma(notifMedId, notifHorario, 'tomado');
+    document.getElementById('notifOv').classList.remove('on');
+    toast('✅ Medicamento confirmado! Parabéns!');
+    notifMedId = null; notifHorario = null;
+    if(telaAtual==='home') renderHome();
+  }
+
+  function fecharNotif() {
+    document.getElementById('notifOv').classList.remove('on');
+    // Reagendar lembrete em 15min (simulado via toast)
+    toast('⏱️ Você será lembrado em 15 minutos');
+    if(notifMedId && notifHorario) {
+      setTimeout(()=>{
+        const m = DB.medicamentos.find(m=>m.id===notifMedId);
+        const st = DB.getStatusTomaHoje(notifMedId, notifHorario);
+        if(m && !st) mostrarNotifMed(m, notifHorario);
+      }, 15*60*1000); // 15 min
+    }
+  }
+
+  /* ── MODAL ──────────────────────────────────────────────────── */
+  function abrirModal(html) {
+    document.getElementById('modalBody').innerHTML = html;
+    document.getElementById('modal').classList.add('on');
+  }
+
+  function fecharModal(e) {
+    if(e && e.target !== document.getElementById('modal')) return;
+    document.getElementById('modal').classList.remove('on');
+  }
+
+  /* ── TOAST ──────────────────────────────────────────────────── */
+  function toast(msg, duracao=3200) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('on');
+    if(toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=>el.classList.remove('on'), duracao);
+  }
+
+  /* ── CALENDÁRIO ─────────────────────────────────────────────── */
+  function calMudar(delta) {
+    calMes += delta;
+    if(calMes < 0)  { calMes=11; calAno--; }
+    if(calMes > 11) { calMes=0;  calAno++; }
+    renderHistorico();
+  }
+
+  /* ── CONFIG AÇÕES ───────────────────────────────────────────── */
+  function toggleCfg(key, el) {
+    const cfg = DB.config;
+    cfg[key] = !(cfg[key]!==false);
+    DB.config = cfg;
+    el.classList.toggle('on');
+  }
+
+  function togglePausar(id) {
+    const meds = DB.medicamentos;
+    const m = meds.find(m=>m.id===id);
+    if(!m) return;
+    m.ativo = !m.ativo;
+    DB.medicamentos = meds;
+    toast(m.ativo ? '▶️ Alertas reativados!' : '⏸️ Alertas pausados');
+    renderDetalhe(id);
+  }
+
+  function editarNome() {
+    abrirModal(`
+      <div class="modal-title">👤 Seu Nome</div>
+      <div class="campo"><label>Nome</label><input type="text" id="cfgNomeInput" value="${DB.config.nome||''}" placeholder="Seu nome"></div>
+      <button class="btn btn-g" onclick="App.salvarNome()">💾 Salvar</button>
+    `);
+  }
+
+  function salvarNome() {
+    const v = document.getElementById('cfgNomeInput').value.trim();
+    if(!v) return;
+    const cfg = DB.config;
+    cfg.nome = v;
+    DB.config = cfg;
+    fecharModal();
+    toast('Nome atualizado!');
+    document.getElementById('nomeUsuario').textContent = v;
+    renderConfig();
+  }
+
+  function editarCuidador() {
+    abrirModal(`
+      <div class="modal-title">📞 Contato do Cuidador</div>
+      <div class="campo"><label>Nome do cuidador</label><input type="text" id="cfgCuidador" value="${DB.config.cuidador||''}" placeholder="Ex: Ana Silva"></div>
+      <button class="btn btn-g" onclick="App.salvarCuidador()">💾 Salvar</button>
+    `);
+  }
+
+  function salvarCuidador() {
+    const v = document.getElementById('cfgCuidador').value.trim();
+    const cfg = DB.config;
+    cfg.cuidador = v;
+    DB.config = cfg;
+    fecharModal();
+    toast('Cuidador atualizado!');
+    renderConfig();
+  }
+
+  function editarApiKey() {
+    const chaveAtual = DB.apikey || '';
+    // Mostrar os primeiros e últimos caracteres da chave salva (para confirmar)
+    const chaveResumida = chaveAtual.length > 10
+      ? chaveAtual.substring(0, 12) + '...' + chaveAtual.slice(-4)
+      : (chaveAtual ? chaveAtual : 'Nenhuma chave salva');
+
+    abrirModal(`
+      <div class="modal-title">🔑 Chave API Claude</div>
+
+      ${chaveAtual ? `
+      <div style="background:var(--g3);border-radius:12px;padding:12px 14px;margin-bottom:14px">
+        <div style="font-size:12px;font-weight:800;color:var(--g4);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Chave salva atualmente</div>
+        <div style="font-size:14px;font-weight:700;color:var(--g4);font-family:monospace;word-break:break-all">${chaveResumida}</div>
+      </div>` : `
+      <div style="background:var(--am2);border-radius:12px;padding:12px 14px;margin-bottom:14px">
+        <div style="font-size:13px;font-weight:700;color:var(--am3)">⚠️ Nenhuma chave configurada ainda</div>
+      </div>`}
+
+      <div class="campo">
+        <label>Colar nova chave (começa com sk-ant-)</label>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="password" id="apikeyModal" value="${chaveAtual}"
+            placeholder="sk-ant-api03-..."
+            style="flex:1;font-family:monospace;font-size:14px">
+          <button onclick="App.toggleVerChave()" style="background:var(--c7);border:2px solid var(--c6);border-radius:12px;padding:12px;font-size:18px;cursor:pointer;flex-shrink:0" title="Mostrar/ocultar">👁️</button>
+        </div>
+        <div style="font-size:12px;color:var(--c3);font-weight:600;margin-top:6px">Cole a chave exatamente como aparece em console.anthropic.com → API Keys</div>
+      </div>
+
+      <button class="btn btn-g" onclick="App.salvarApiKey()">💾 Salvar chave</button>
+      <button class="btn btn-w" onclick="App.testarApiKey()" style="margin-top:10px">
+        🧪 Testar se a chave está funcionando
+      </button>
+      ${chaveAtual ? `<button class="btn btn-vm" onclick="App.apagarApiKey()" style="margin-top:10px">🗑️ Apagar chave salva</button>` : ''}
+
+      <div style="margin-top:16px;background:var(--c7);border-radius:12px;padding:12px 14px">
+        <div style="font-size:12px;font-weight:800;color:var(--c3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Como obter a chave</div>
+        <div style="font-size:13px;color:var(--c3);font-weight:600;line-height:1.6">
+          1. Acesse <strong>console.anthropic.com</strong><br>
+          2. Menu lateral → <strong>API Keys</strong><br>
+          3. Clique em <strong>Create Key</strong><br>
+          4. Copie e cole aqui
+        </div>
+      </div>
+    `);
+  }
+
+  function toggleVerChave() {
+    const input = document.getElementById('apikeyModal');
+    if(!input) return;
+    input.type = input.type === 'password' ? 'text' : 'password';
+  }
+
+  async function testarApiKey() {
+    const v = document.getElementById('apikeyModal')?.value.trim() || DB.apikey;
+    if(!v) { toast('⚠️ Digite ou salve uma chave primeiro'); return; }
+
+    // Feedback visual
+    toast('🧪 Testando a chave...');
+
+    try {
+      const resp = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': v,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 10,
+          messages: [{ role: 'user', content: 'Responda apenas: ok' }]
+        })
+      });
+
+      if(resp.ok) {
+        // Salvar a chave automaticamente se passou no teste
+        DB.apikey = v;
+        fecharModal();
+        toast('✅ Chave válida e funcionando! Salva com sucesso.');
+        renderConfig();
+      } else {
+        const err = await resp.json().catch(()=>({}));
+        const msg = err.error?.message || 'Erro desconhecido';
+        if(resp.status === 401) {
+          toast('❌ Chave inválida! Verifique se copiou corretamente.');
+          abrirModal(`
+            <div class="modal-title" style="color:var(--vm)">❌ Chave Inválida</div>
+            <div style="background:var(--vm2);border-radius:12px;padding:14px;margin-bottom:16px">
+              <div style="font-size:14px;font-weight:700;color:#991B1B;line-height:1.6">${msg}</div>
+            </div>
+            <div style="font-size:14px;font-weight:700;color:var(--c2);margin-bottom:12px">O que verificar:</div>
+            <div style="font-size:14px;color:var(--c3);line-height:1.8;font-weight:600">
+              ✔️ A chave começa com <code style="background:var(--c7);padding:2px 6px;border-radius:4px">sk-ant-</code><br>
+              ✔️ Não tem espaços no início ou no final<br>
+              ✔️ Foi copiada completa (são ~100 caracteres)<br>
+              ✔️ Foi criada em <strong>console.anthropic.com</strong><br>
+              ✔️ Sua conta tem créditos em <strong>Billing</strong>
+            </div>
+            <button class="btn btn-g" onclick="App.editarApiKey()" style="margin-top:16px">🔑 Tentar de novo</button>
+          `);
+        } else if(resp.status === 529 || resp.status === 500) {
+          toast('⚠️ Serviço temporariamente indisponível. Tente novamente em alguns minutos.');
+        } else {
+          toast('⚠️ Erro ' + resp.status + ': ' + msg.substring(0,60));
+        }
+      }
+    } catch(e) {
+      toast('⚠️ Sem conexão com a internet. Verifique o Wi-Fi e tente de novo.');
+    }
+  }
+
+  function apagarApiKey() {
+    DB.apikey = '';
+    fecharModal();
+    toast('🗑️ Chave removida');
+    renderConfig();
+  }
+
+  function salvarApiKey() {
+    const input = document.getElementById('apikeyModal');
+    if(!input) return;
+    const v = input.value.trim();
+    if(v && !v.startsWith('sk-ant-')) {
+      toast('⚠️ A chave deve começar com sk-ant-');
+      return;
+    }
+    DB.apikey = v;
+    fecharModal();
+    toast(v ? '🔑 Chave salva! Toque em "Testar" para confirmar.' : '🗑️ Chave removida');
+    renderConfig();
+  }
+
+  function ajustarFonte() {
+    abrirModal(`
+      <div class="modal-title">🔠 Tamanho da Fonte</div>
+      <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:20px">
+        ${[['normal','Normal (padrão)'],['grande','Grande'],['muito-grande','Muito Grande']].map(([v,l])=>`
+          <div onclick="App.setFonte('${v}')" style="background:${DB.config.fonte===v?'var(--g3)':'var(--c7)'};border-radius:12px;padding:14px 16px;cursor:pointer;font-size:${v==='normal'?'16':v==='grande'?'19':'22'}px;font-weight:700;color:${DB.config.fonte===v?'var(--g4)':'var(--c2)'}">
+            ${l} ${DB.config.fonte===v?'✅':''}
+          </div>`).join('')}
+      </div>
+    `);
+  }
+
+  function setFonte(v) {
+    const cfg = DB.config;
+    cfg.fonte = v;
+    DB.config = cfg;
+    const sz = v==='normal'?'16px':v==='grande'?'19px':'22px';
+    document.documentElement.style.fontSize = sz;
+    fecharModal();
+    renderConfig();
+  }
+
+  function toggleTema() {
+    const cfg = DB.config;
+    cfg.tema = cfg.tema==='Escuro' ? 'Claro' : 'Escuro';
+    DB.config = cfg;
+    aplicarTema(cfg.tema);
+    renderConfig();
+    toast(`Tema ${cfg.tema} ativado`);
+  }
+
+  function aplicarTema(tema) {
+    if(tema==='Escuro') {
+      document.documentElement.style.setProperty('--bg','#1a1a2e');
+      document.documentElement.style.setProperty('--card','#16213e');
+      document.documentElement.style.setProperty('--c1','#e0e0e0');
+      document.documentElement.style.setProperty('--c2','#c0c0c0');
+      document.documentElement.style.setProperty('--c7','#0f3460');
+      document.documentElement.style.setProperty('--c6','#1a4a7a');
+    } else {
+      document.documentElement.style.setProperty('--bg','#F0F4F1');
+      document.documentElement.style.setProperty('--card','#FFFFFF');
+      document.documentElement.style.setProperty('--c1','#111827');
+      document.documentElement.style.setProperty('--c2','#374151');
+      document.documentElement.style.setProperty('--c7','#F3F4F6');
+      document.documentElement.style.setProperty('--c6','#E5E7EB');
+    }
+  }
+
+  function confirmarLimpar() {
+    abrirModal(`
+      <div class="modal-title">⚠️ Limpar todos os dados?</div>
+      <p style="font-size:15px;color:var(--c3);margin-bottom:20px;font-weight:600;line-height:1.5">
+        Isso removerá <strong>todos os remédios e histórico</strong>. Esta ação não pode ser desfeita.
+      </p>
+      <button class="btn btn-vm" onclick="App.limparTudo()">🗑️ Sim, apagar tudo</button>
+      <button class="btn btn-w" onclick="App.fecharModal()">Cancelar</button>
+    `);
+  }
+
+  function limparTudo() {
+    const chaveApi = DB.apikey; // Preservar a chave API
+    localStorage.clear();
+    // Marcar que este é um usuário real — nunca mais carregar dados demo
+    localStorage.setItem('med_usuario_real', '1');
+    // Restaurar a chave API
+    if(chaveApi) localStorage.setItem('med_apikey', chaveApi);
+    fecharModal();
+    toast('✅ Dados apagados. Seus remédios foram removidos.');
+    go('home');
+    renderHome();
+    renderConfig();
+  }
+
+  /* ── EXPORTAR PDF ────────────────────────────────────────────── */
+  function exportarPDF() {
+    const meds = DB.medicamentos;
+    const regs = DB.registros;
+
+    let html = `
+    <html><head><meta charset="UTF-8">
+    <style>
+      body{font-family:Arial,sans-serif;padding:30px;color:#111;max-width:700px;margin:0 auto}
+      h1{color:#1A7A4E;font-size:24px;margin-bottom:4px}
+      h2{color:#1A7A4E;font-size:18px;margin:24px 0 8px;border-bottom:2px solid #E8F5EE;padding-bottom:6px}
+      .med{background:#f9f9f9;border-radius:8px;padding:12px 16px;margin-bottom:10px;border-left:4px solid #1A7A4E}
+      .med h3{margin:0 0 4px;font-size:16px}
+      .med p{margin:0;font-size:14px;color:#555}
+      table{width:100%;border-collapse:collapse;font-size:13px;margin-top:10px}
+      th{background:#1A7A4E;color:#fff;padding:8px 10px;text-align:left}
+      td{padding:7px 10px;border-bottom:1px solid #eee}
+      tr:nth-child(even) td{background:#f5f9f5}
+      .ok{color:#0F5235;font-weight:700} .nok{color:#92400E;font-weight:700}
+      footer{margin-top:40px;font-size:12px;color:#999;text-align:center}
+    </style></head><body>
+    <h1>💊 MedAlert — Relatório de Medicamentos</h1>
+    <p style="color:#555;font-size:14px">Gerado em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</p>
+    ${DB.config.nome?`<p style="font-size:14px"><strong>Paciente:</strong> ${DB.config.nome}</p>`:''}
+    <h2>📋 Medicamentos Cadastrados (${meds.filter(m=>m.ativo).length} ativos)</h2>
+    ${meds.filter(m=>m.ativo).map(m=>`
+      <div class="med">
+        <h3>${m.emoji||'💊'} ${m.nome} ${m.dose}</h3>
+        <p>Via: ${m.via||'oral'} · Horários: ${(m.horarios||[]).join(', ')}${m.instrucoes?' · '+m.instrucoes:''}</p>
+      </div>`).join('')}
+    <h2>📊 Histórico de Adesão (últimos 30 dias)</h2>
+    <table>
+      <tr><th>Data</th><th>Medicamento</th><th>Dose</th><th>Programado</th><th>Confirmado</th><th>Status</th></tr>
+      ${regs.slice(-60).reverse().map(r=>{
+        const m = meds.find(m=>m.id===r.medId);
+        return `<tr>
+          <td>${new Date(r.data+'T12:00:00').toLocaleDateString('pt-BR')}</td>
+          <td>${m?.nome||'—'}</td>
+          <td>${m?.dose||'—'}</td>
+          <td>${r.horario}</td>
+          <td>${r.horarioReal||'—'}</td>
+          <td class="${r.status==='tomado'?'ok':'nok'}">${r.status==='tomado'?'✅ Tomado':'⚠️ '+r.status}</td>
+        </tr>`;
+      }).join('')}
+    </table>
+    <footer>MedAlert v1.0 · Documento gerado automaticamente · Apresentar ao médico</footer>
+    </body></html>`;
+
+    const w = window.open('','_blank');
+    if(w) { w.document.write(html); w.document.close(); setTimeout(()=>w.print(),500); }
+    else toast('❌ Permita pop-ups para gerar o PDF');
+  }
+
+  /* ── DADOS DE DEMONSTRAÇÃO ──────────────────────────────────── */
+  function carregarDemo() {
+    // NUNCA carregar demo se o usuário já usou o app (limpou dados ou cadastrou algo)
+    if(localStorage.getItem('med_usuario_real')) return;
+    if(DB.medicamentos.length) return; // Já tem dados
+
+    const demo = [
+      { id:uid(), nome:'Losartana', principio:'Losartana Potássica', dose:'50mg', via:'oral',
+        horarios:['08:00','20:00'], instrucoes:'Tomar com água', cor:CORES[0], emoji:'💊',
+        estoque:24, ativo:true, continuo:true, inicio:hojeStr(), criado:Date.now() },
+      { id:uid(), nome:'Metformina', principio:'Metformina HCl', dose:'850mg', via:'oral',
+        horarios:['08:00','13:00','20:00'], instrucoes:'Tomar com as refeições', cor:CORES[5], emoji:'🍃',
+        estoque:45, ativo:true, continuo:true, inicio:hojeStr(), criado:Date.now() },
+      { id:uid(), nome:'Anlodipino', principio:'Besilato de Anlodipino', dose:'5mg', via:'oral',
+        horarios:['08:00'], instrucoes:'', cor:CORES[1], emoji:'🫀',
+        estoque:6, ativo:true, continuo:true, inicio:hojeStr(), criado:Date.now() },
+      { id:uid(), nome:'Atorvastatina', principio:'Atorvastatina Cálcica', dose:'20mg', via:'oral',
+        horarios:['22:00'], instrucoes:'Tomar à noite', cor:CORES[3], emoji:'⭐',
+        estoque:28, ativo:true, continuo:true, inicio:hojeStr(), criado:Date.now() },
+    ];
+    demo.forEach(m => DB.salvarMed(m));
+
+    // Registros dos últimos 7 dias para o histórico
+    const hoje = new Date();
+    demo.forEach(m => {
+      for(let d=6; d>=1; d--) {
+        const dt = new Date(hoje);
+        dt.setDate(hoje.getDate()-d);
+        const ds = dt.toISOString().split('T')[0];
+        m.horarios.forEach(h => {
+          const ok = Math.random() > 0.12; // 88% adesão
+          DB.registrarToma(m.id, h, ok?'tomado':'perdido');
+          const regs = DB.registros;
+          const idx = regs.findLastIndex(r=>r.medId===m.id&&r.horario===h);
+          if(idx>=0){ regs[idx].data=ds; DB.registros=regs; }
+        });
+      }
+    });
+
+    // Registros de hoje (parcial)
+    const mTomados = demo.slice(0,2);
+    mTomados.forEach(m => {
+      DB.registrarToma(m.id, m.horarios[0], 'tomado');
+    });
+
+    const cfg = DB.config;
+    cfg.nome = 'Maria da Silva';
+    cfg.som = true; cfg.vibracao = true;
+    cfg.silencioso = true; cfg.reforco = true;
+    DB.config = cfg;
+  }
+
+  /* ── INICIALIZAÇÃO ──────────────────────────────────────────── */
+  function init() {
+    carregarDemo();
+    iniciarRelogio();
+    renderHome();
+
+    // Aplicar configurações salvas
+    const cfg = DB.config;
+    if(cfg.tema==='Escuro') aplicarTema('Escuro');
+    if(cfg.fonte && cfg.fonte!=='normal') {
+      const sz = cfg.fonte==='grande'?'19px':'22px';
+      document.documentElement.style.fontSize = sz;
+    }
+    if(cfg.nome) document.getElementById('nomeUsuario').textContent = cfg.nome;
+
+    // Salvar api key do campo se presente
+    const k = document.getElementById('apikeyInput').value.trim();
+    if(k) DB.apikey = k;
+
+    // Iniciar verificador de alertas
+    iniciarAlertas();
+
+    // Solicitar permissão de notificação do browser
+    if('Notification' in window && Notification.permission==='default') {
+      Notification.requestPermission();
+    }
+  }
+
+  /* ── API PÚBLICA ────────────────────────────────────────────── */
+  return {
+    go, irCamera, irFormManual, salvarForm, confirmarExcluir, excluirMed,
+    onFotoSelecionada, simularReceita, salvarResultadoIA, renderIAResultado,
+    confirmarNotif, fecharNotif, abrirModal, fecharModal, toast,
+    calMudar, toggleCfg, togglePausar,
+    editarNome, salvarNome, editarCuidador, salvarCuidador,
+    editarApiKey, salvarApiKey, testarApiKey, toggleVerChave, apagarApiKey,
+    ajustarFonte, setFonte, toggleTema,
+    confirmarLimpar, limparTudo, exportarPDF,
+    renderDetalhe, onFreqChange, adicionarHora, removerHora,
+    selecionarCor, selecionarEmoji, voltarDoForm,
+    mostrarNotifById: (id, h) => {
+      const m = DB.medicamentos.find(m=>m.id===id);
+      if(m) mostrarNotifMed(m, h);
+    },
+    confirmarNotifById: (id, h) => {
+      notifMedId = id; notifHorario = h;
+      confirmarNotif();
+    },
+    init
+  };
+})();
+
+/* ── INICIAR APP ─────────────────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', App.init);
+</script>
+
+
+<!-- ══════════════════════════════════════════
+     BANNER DE INSTALAÇÃO (Android/Desktop)
+══════════════════════════════════════════ -->
+<!-- ══════════════════════════════════════════
+     DICA DE INSTALAÇÃO iOS (Safari)
+══════════════════════════════════════════ -->
+<!-- ══════════════════════════════════════════
+     PWA — SERVICE WORKER + NOTIFICAÇÕES
+══════════════════════════════════════════ -->
+
+<!-- ══════════════════════════════
+     BANNER ANDROID/CHROME
+══════════════════════════════ -->
+<div id="installBanner">
+  <div class="ib-row">
+    <div class="ib-icon">💊</div>
+    <div>
+      <div class="ib-h">Instalar MedAlert</div>
+      <div class="ib-p">Adicione à tela inicial — funciona sem internet</div>
+    </div>
+  </div>
+  <div class="ib-btns">
+    <button class="ib-yes" id="btnInstalar">📲 Instalar agora</button>
+    <button class="ib-no"  id="btnDispensa">Agora não</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════
+     DICA iOS / SAFARI
+══════════════════════════════ -->
+<div id="iosHint">
+  <button class="ih-close" id="btnIosClose">✕</button>
+  <div class="ih-title">📲 Instalar no iPhone / iPad</div>
+  <div class="ih-sub">No Safari, siga os passos:</div>
+  <div class="ih-step"><span class="ih-em">1️⃣</span>Toque em <strong>Compartilhar</strong> (□↑) na barra do Safari</div>
+  <div class="ih-step"><span class="ih-em">2️⃣</span>Toque em <strong>"Adicionar à Tela de Início"</strong></div>
+  <div class="ih-step"><span class="ih-em">3️⃣</span>Toque em <strong>"Adicionar"</strong> no canto superior direito</div>
+  <div class="ih-step"><span class="ih-em">✅</span>Pronto! Ícone na tela inicial do celular</div>
+</div>
+
+<!-- ══════════════════════════════
+     PWA — SERVICE WORKER
+══════════════════════════════ -->
+<script>
+(function(){
+  /* ── Service Worker ── */
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('sw.js')
+      .then(function(reg){
+        console.log('[SW] Registrado:', reg.scope);
+        navigator.serviceWorker.addEventListener('message', function(e){
+          if(e.data && e.data.type==='CONFIRMAR_TOMA' && window.App)
+            App.confirmarNotifById(e.data.medId, e.data.horario);
+        });
+      })
+      .catch(function(err){ console.warn('[SW] Erro:', err); });
+  }
+
+  /* ── Banner de instalação (Android/Chrome) ── */
+  var deferredPrompt = null;
+
+  window.addEventListener('beforeinstallprompt', function(e){
+    e.preventDefault();
+    deferredPrompt = e;
+    if(!localStorage.getItem('med_dismissed')){
+      setTimeout(function(){ document.getElementById('installBanner').classList.add('show'); }, 2500);
+    }
+  });
+
+  document.getElementById('btnInstalar').addEventListener('click', function(){
+    document.getElementById('installBanner').classList.remove('show');
+    if(deferredPrompt){
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then(function(r){
+        if(r.outcome==='accepted' && window.App) App.toast('🎉 MedAlert instalado!');
+        deferredPrompt=null;
+      });
+    }
+  });
+
+  document.getElementById('btnDispensa').addEventListener('click', function(){
+    document.getElementById('installBanner').classList.remove('show');
+    localStorage.setItem('med_dismissed','1');
+  });
+
+  window.addEventListener('appinstalled', function(){
+    deferredPrompt=null;
+    document.getElementById('installBanner').classList.remove('show');
+    if(window.App) App.toast('🎉 App instalado com sucesso!');
+  });
+
+  /* ── Dica iOS ── */
+  var isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  var isStandalone = window.navigator.standalone === true ||
+                     window.matchMedia('(display-mode: standalone)').matches;
+
+  if(isIos && !isStandalone && !localStorage.getItem('med_ios_visto')){
+    setTimeout(function(){ document.getElementById('iosHint').classList.add('show'); }, 3500);
+  }
+
+  document.getElementById('btnIosClose').addEventListener('click', function(){
+    document.getElementById('iosHint').classList.remove('show');
+    localStorage.setItem('med_ios_visto','1');
+  });
+
+  /* ── Notificações ── */
+  function pedirPermissaoNotif(){
+    if('Notification' in window && Notification.permission==='default'){
+      Notification.requestPermission();
+    }
+  }
+  setTimeout(pedirPermissaoNotif, 5000);
+
+  /* ── Vibração ao confirmar ── */
+  window.App_vibrar = function(p){
+    if('vibrate' in navigator) navigator.vibrate(p||[100,50,100]);
+  };
+
+  /* ── Wake Lock ── */
+  if('wakeLock' in navigator && window.matchMedia('(display-mode:standalone)').matches){
+    navigator.wakeLock.request('screen').catch(function(){});
+  }
+
+})();
+</script>
+</body>
+</html>
