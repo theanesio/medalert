@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="MedAlert">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="description" content="Gerenciador inteligente de medicamentos">
+<meta name="description" content="Gerenciador inteligente de medicamentos de uso contínuo">
 <title>MedAlert — Meus Remédios</title>
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
@@ -608,6 +608,7 @@ input[type=range]::-webkit-slider-thumb{
 </style>
 </head>
 <body>
+
 <div id="app">
 
   <!-- STATUS BAR -->
@@ -884,6 +885,7 @@ input[type=range]::-webkit-slider-thumb{
   </div>
 
 </div><!-- #app -->
+
 
 <script>
 /* ═══════════════════════════════════════════════════════════════════
@@ -2356,60 +2358,11 @@ Regras:
   }
 
   /* ── DADOS DE DEMONSTRAÇÃO ──────────────────────────────────── */
-  function carregarDemo() {
-    // NUNCA carregar demo se o usuário já usou o app (limpou dados ou cadastrou algo)
-    if(localStorage.getItem('med_usuario_real')) return;
-    if(DB.medicamentos.length) return; // Já tem dados
-
-    const demo = [
-      { id:uid(), nome:'Losartana', principio:'Losartana Potássica', dose:'50mg', via:'oral',
-        horarios:['08:00','20:00'], instrucoes:'Tomar com água', cor:CORES[0], emoji:'💊',
-        estoque:24, ativo:true, continuo:true, inicio:hojeStr(), criado:Date.now() },
-      { id:uid(), nome:'Metformina', principio:'Metformina HCl', dose:'850mg', via:'oral',
-        horarios:['08:00','13:00','20:00'], instrucoes:'Tomar com as refeições', cor:CORES[5], emoji:'🍃',
-        estoque:45, ativo:true, continuo:true, inicio:hojeStr(), criado:Date.now() },
-      { id:uid(), nome:'Anlodipino', principio:'Besilato de Anlodipino', dose:'5mg', via:'oral',
-        horarios:['08:00'], instrucoes:'', cor:CORES[1], emoji:'🫀',
-        estoque:6, ativo:true, continuo:true, inicio:hojeStr(), criado:Date.now() },
-      { id:uid(), nome:'Atorvastatina', principio:'Atorvastatina Cálcica', dose:'20mg', via:'oral',
-        horarios:['22:00'], instrucoes:'Tomar à noite', cor:CORES[3], emoji:'⭐',
-        estoque:28, ativo:true, continuo:true, inicio:hojeStr(), criado:Date.now() },
-    ];
-    demo.forEach(m => DB.salvarMed(m));
-
-    // Registros dos últimos 7 dias para o histórico
-    const hoje = new Date();
-    demo.forEach(m => {
-      for(let d=6; d>=1; d--) {
-        const dt = new Date(hoje);
-        dt.setDate(hoje.getDate()-d);
-        const ds = dt.toISOString().split('T')[0];
-        m.horarios.forEach(h => {
-          const ok = Math.random() > 0.12; // 88% adesão
-          DB.registrarToma(m.id, h, ok?'tomado':'perdido');
-          const regs = DB.registros;
-          const idx = regs.findLastIndex(r=>r.medId===m.id&&r.horario===h);
-          if(idx>=0){ regs[idx].data=ds; DB.registros=regs; }
-        });
-      }
-    });
-
-    // Registros de hoje (parcial)
-    const mTomados = demo.slice(0,2);
-    mTomados.forEach(m => {
-      DB.registrarToma(m.id, m.horarios[0], 'tomado');
-    });
-
-    const cfg = DB.config;
-    cfg.nome = 'Maria da Silva';
-    cfg.som = true; cfg.vibracao = true;
-    cfg.silencioso = true; cfg.reforco = true;
-    DB.config = cfg;
-  }
 
   /* ── INICIALIZAÇÃO ──────────────────────────────────────────── */
   function init() {
-    carregarDemo();
+    // Primeira abertura: app limpo, sem dados demo
+    // Não carrega nada automaticamente — usuário adiciona seus próprios remédios
     iniciarRelogio();
     renderHome();
 
@@ -2463,20 +2416,7 @@ Regras:
 document.addEventListener('DOMContentLoaded', App.init);
 </script>
 
-
-<!-- ══════════════════════════════════════════
-     BANNER DE INSTALAÇÃO (Android/Desktop)
-══════════════════════════════════════════ -->
-<!-- ══════════════════════════════════════════
-     DICA DE INSTALAÇÃO iOS (Safari)
-══════════════════════════════════════════ -->
-<!-- ══════════════════════════════════════════
-     PWA — SERVICE WORKER + NOTIFICAÇÕES
-══════════════════════════════════════════ -->
-
-<!-- ══════════════════════════════
-     BANNER ANDROID/CHROME
-══════════════════════════════ -->
+<!-- BANNER ANDROID/CHROME -->
 <div id="installBanner">
   <div class="ib-row">
     <div class="ib-icon">💊</div>
@@ -2491,29 +2431,24 @@ document.addEventListener('DOMContentLoaded', App.init);
   </div>
 </div>
 
-<!-- ══════════════════════════════
-     DICA iOS / SAFARI
-══════════════════════════════ -->
+<!-- DICA iOS/SAFARI -->
 <div id="iosHint">
   <button class="ih-close" id="btnIosClose">✕</button>
   <div class="ih-title">📲 Instalar no iPhone / iPad</div>
   <div class="ih-sub">No Safari, siga os passos:</div>
   <div class="ih-step"><span class="ih-em">1️⃣</span>Toque em <strong>Compartilhar</strong> (□↑) na barra do Safari</div>
-  <div class="ih-step"><span class="ih-em">2️⃣</span>Toque em <strong>"Adicionar à Tela de Início"</strong></div>
+  <div class="ih-step"><span class="ih-em">2️⃣</span>Role a lista e toque em <strong>"Adicionar à Tela de Início"</strong></div>
   <div class="ih-step"><span class="ih-em">3️⃣</span>Toque em <strong>"Adicionar"</strong> no canto superior direito</div>
-  <div class="ih-step"><span class="ih-em">✅</span>Pronto! Ícone na tela inicial do celular</div>
+  <div class="ih-step"><span class="ih-em">✅</span>Pronto! O ícone aparece na tela inicial</div>
 </div>
 
-<!-- ══════════════════════════════
-     PWA — SERVICE WORKER
-══════════════════════════════ -->
+<!-- PWA: SERVICE WORKER + INSTALAÇÃO -->
 <script>
 (function(){
-  /* ── Service Worker ── */
   if('serviceWorker' in navigator){
     navigator.serviceWorker.register('sw.js')
       .then(function(reg){
-        console.log('[SW] Registrado:', reg.scope);
+        console.log('[SW] Registrado v3:', reg.scope);
         navigator.serviceWorker.addEventListener('message', function(e){
           if(e.data && e.data.type==='CONFIRMAR_TOMA' && window.App)
             App.confirmarNotifById(e.data.medId, e.data.horario);
@@ -2522,9 +2457,7 @@ document.addEventListener('DOMContentLoaded', App.init);
       .catch(function(err){ console.warn('[SW] Erro:', err); });
   }
 
-  /* ── Banner de instalação (Android/Chrome) ── */
   var deferredPrompt = null;
-
   window.addEventListener('beforeinstallprompt', function(e){
     e.preventDefault();
     deferredPrompt = e;
@@ -2532,61 +2465,43 @@ document.addEventListener('DOMContentLoaded', App.init);
       setTimeout(function(){ document.getElementById('installBanner').classList.add('show'); }, 2500);
     }
   });
-
   document.getElementById('btnInstalar').addEventListener('click', function(){
     document.getElementById('installBanner').classList.remove('show');
     if(deferredPrompt){
       deferredPrompt.prompt();
       deferredPrompt.userChoice.then(function(r){
-        if(r.outcome==='accepted' && window.App) App.toast('🎉 MedAlert instalado!');
+        if(r.outcome==='accepted' && window.App) App.toast('🎉 MedAlert instalado com sucesso!');
         deferredPrompt=null;
       });
     }
   });
-
   document.getElementById('btnDispensa').addEventListener('click', function(){
     document.getElementById('installBanner').classList.remove('show');
     localStorage.setItem('med_dismissed','1');
   });
-
   window.addEventListener('appinstalled', function(){
     deferredPrompt=null;
     document.getElementById('installBanner').classList.remove('show');
-    if(window.App) App.toast('🎉 App instalado com sucesso!');
+    if(window.App) App.toast('🎉 App instalado!');
   });
 
-  /* ── Dica iOS ── */
   var isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-  var isStandalone = window.navigator.standalone === true ||
-                     window.matchMedia('(display-mode: standalone)').matches;
-
+  var isStandalone = window.navigator.standalone===true || window.matchMedia('(display-mode:standalone)').matches;
   if(isIos && !isStandalone && !localStorage.getItem('med_ios_visto')){
     setTimeout(function(){ document.getElementById('iosHint').classList.add('show'); }, 3500);
   }
-
   document.getElementById('btnIosClose').addEventListener('click', function(){
     document.getElementById('iosHint').classList.remove('show');
     localStorage.setItem('med_ios_visto','1');
   });
 
-  /* ── Notificações ── */
-  function pedirPermissaoNotif(){
-    if('Notification' in window && Notification.permission==='default'){
-      Notification.requestPermission();
-    }
+  if('Notification' in window && Notification.permission==='default'){
+    setTimeout(function(){ Notification.requestPermission(); }, 5000);
   }
-  setTimeout(pedirPermissaoNotif, 5000);
-
-  /* ── Vibração ao confirmar ── */
-  window.App_vibrar = function(p){
-    if('vibrate' in navigator) navigator.vibrate(p||[100,50,100]);
-  };
-
-  /* ── Wake Lock ── */
+  window.App_vibrar = function(p){ if('vibrate' in navigator) navigator.vibrate(p||[100,50,100]); };
   if('wakeLock' in navigator && window.matchMedia('(display-mode:standalone)').matches){
     navigator.wakeLock.request('screen').catch(function(){});
   }
-
 })();
 </script>
 </body>
