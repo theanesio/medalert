@@ -897,7 +897,7 @@ input[type=range]::-webkit-slider-thumb{
 ═══════════════════════════════════════════════════════════════════ */
 
 /* ── CONSTANTES ──────────────────────────────────────────────────── */
-const APP_VERSION  = '1.3.0';
+const APP_VERSION  = '1.4.0';
 const CORES = ['#E8F5EE','#EFF6FF','#FEF3C7','#F5F3FF','#FFF0F0','#F0FDF4','#FDF4FF','#FFF7ED'];
 const CORES_TEXT = ['#0F5235','#1D4ED8','#92400E','#5B21B6','#991B1B','#166534','#6B21A2','#9A3412'];
 const EMOJIS = ['💊','💉','🩺','🫀','🧠','👁️','🦷','🦴','🌡️','⭐','🍃','🔵'];
@@ -1028,18 +1028,10 @@ const App = (() => {
   let alertasTimer = null;
 
   /* ── NAVEGAÇÃO ─────────────────────────────────────────────── */
-  function go(tela) {
-    if(telaAtual === tela) return;
-    document.getElementById('s-'+telaAtual)?.classList.remove('on');
-    document.getElementById('s-'+tela)?.classList.add('on');
-    telaAtual = tela;
+  /* pilha de navegacao para botao Voltar */
+  let navStack = ['home'];
 
-    // Nav bar highlight
-    ['home','remedios','historico','config'].forEach(t=>{
-      document.getElementById('nb-'+t)?.classList.toggle('on', t===tela);
-    });
-
-    // Renderizar tela
+  function _renderTela(tela) {
     const renders = {
       'home':      renderHome,
       'remedios':  renderRemedios,
@@ -1047,6 +1039,41 @@ const App = (() => {
       'config':    renderConfig,
     };
     if(renders[tela]) renders[tela]();
+  }
+
+  function _mostrarTela(de, para) {
+    document.getElementById('s-'+de)?.classList.remove('on');
+    const el = document.getElementById('s-'+para);
+    if(el){ el.classList.add('on'); el.scrollTop = 0; }
+    ['home','remedios','historico','config'].forEach(t=>{
+      document.getElementById('nb-'+t)?.classList.toggle('on', t===para);
+    });
+    telaAtual = para;
+  }
+
+  function go(tela) {
+    if(telaAtual === tela) return;
+    _mostrarTela(telaAtual, tela);
+    // Empurrar no historico do browser para interceptar botao Voltar
+    history.pushState({ tela: tela }, '', '#' + tela);
+    navStack.push(tela);
+    _renderTela(tela);
+  }
+
+  function voltarTela() {
+    // Fechar modal se aberto
+    const modal = document.getElementById('modal');
+    if(modal && modal.classList.contains('on')){ modal.classList.remove('on'); return; }
+    // Fechar notificacao se aberta
+    const notif = document.getElementById('notifOv');
+    if(notif && notif.classList.contains('on')){ notif.classList.remove('on'); return; }
+    // Voltar na pilha
+    if(navStack.length > 1){
+      navStack.pop();
+      const anterior = navStack[navStack.length - 1];
+      _mostrarTela(telaAtual, anterior);
+      _renderTela(anterior);
+    }
   }
 
   /* ── RELÓGIO ───────────────────────────────────────────────── */
@@ -1063,22 +1090,76 @@ const App = (() => {
   /* ── ALERTAS AUTOMÁTICOS ───────────────────────────────────── */
   function iniciarAlertas() {
     if(alertasTimer) clearInterval(alertasTimer);
-    alertasTimer = setInterval(verificarAlertas, 20000); // checar a cada 20s
+    // Verificar a cada 30s enquanto app está em foreground
+    alertasTimer = setInterval(verificarAlertas, 30000);
     verificarAlertas();
+    // Agendar notificações nativas para todos os horários de hoje
+    agendarTodasNotificacoes();
+  }
+
+  /* ── AGENDAR NOTIFICAÇÕES NATIVAS (rodam mesmo com app fechado) ── */
+  function agendarTodasNotificacoes() {
+    if(!('Notification' in window)) return;
+    if(Notification.permission !== 'granted') {
+      Notification.requestPermission().then(p => {
+        if(p === 'granted') agendarTodasNotificacoes();
+      });
+      return;
+    }
+
+    const meds  = DB.medicamentos.filter(m => m.ativo);
+    const agora = new Date();
+
+    meds.forEach(m => {
+      (m.horarios || []).forEach(h => {
+        const [hh, mm] = h.split(':').map(Number);
+        const alvo = new Date();
+        alvo.setHours(hh, mm, 0, 0);
+
+        // Se o horário já passou hoje, agendar para amanhã
+        if(alvo <= agora) alvo.setDate(alvo.getDate() + 1);
+
+        const diff = alvo.getTime() - agora.getTime();
+
+        // Não agendar se for mais de 24h
+        if(diff > 24 * 60 * 60 * 1000) return;
+
+        setTimeout(() => {
+          // Verificar se já foi tomado
+          const status = DB.getStatusTomaHoje(m.id, h);
+          if(status === 'tomado') return;
+
+          // Disparar alarme
+          dispararAlerta(m, h, 'primario');
+
+          // Agendar reforço em 15min se configurado
+          if(DB.config.reforco !== false) {
+            setTimeout(() => {
+              const st2 = DB.getStatusTomaHoje(m.id, h);
+              if(!st2 || st2 !== 'tomado') {
+                dispararAlerta(m, h, 'reforco');
+              }
+            }, 15 * 60 * 1000);
+          }
+        }, diff);
+      });
+    });
   }
 
   function verificarAlertas() {
-    const agora   = horaAtual();
-    const agoraM  = minutosDeHoje(agora);
-    const cfg     = DB.config;
-    const meds    = DB.medicamentos.filter(m => m.ativo);
+    // Verificação de foreground (app aberto) — captura horários que podem ter
+    // sido perdidos pelo setTimeout (ex: celular em modo economia de energia)
+    const agora  = horaAtual();
+    const agoraM = minutosDeHoje(agora);
+    const meds   = DB.medicamentos.filter(m => m.ativo);
 
-    for (const m of meds) {
-      for (const h of (m.horarios || [])) {
+    for(const m of meds) {
+      for(const h of (m.horarios || [])) {
         const diff = agoraM - minutosDeHoje(h);
-        if (diff >= 0 && diff <= 1) {
+        // Janela de 2 minutos após o horário programado
+        if(diff >= 0 && diff <= 2) {
           const status = DB.getStatusTomaHoje(m.id, h);
-          if (!status) {
+          if(!status) {
             dispararAlerta(m, h, 'primario');
             return;
           }
@@ -1228,30 +1309,56 @@ const App = (() => {
 
   /* ── DISPARAR ALERTA ─────────────────────────────────────── */
   function dispararAlerta(med, horario, tipo) {
-    // Som + vibração
-    if (tipo === 'primario') {
-      tocarSom(DB.config.toque || 'campanhia');
+    const cfg = DB.config;
+
+    // 1. Notificação nativa do SISTEMA (aparece mesmo com app fechado/tela bloqueada)
+    if('Notification' in window && Notification.permission === 'granted') {
+      const titulo = tipo === 'reforco'
+        ? `⚠️ Lembrete: ${med.nome}`
+        : `💊 Hora de tomar: ${med.nome}`;
+      const corpo = `${med.dose} · ${horario}${med.instrucoes ? '\n' + med.instrucoes : ''}`;
+
+      // Usar SW para notificação persistente (funciona com tela bloqueada)
+      if('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.ready.then(reg => {
+          reg.showNotification(titulo, {
+            body:             corpo,
+            icon:             'icons/icon-192.png',
+            badge:            'icons/icon-72.png',
+            tag:              `med-${med.id}-${horario}-${tipo}`,
+            requireInteraction: true,  // Não desaparece sozinha — usuário precisa agir
+            vibrate:          tipo === 'reforco' ? [300,100,300,100,600] : [200,100,200],
+            actions: [
+              { action: 'tomei',  title: '✅ TOMEI' },
+              { action: 'depois', title: '⏱️ 15 min' }
+            ],
+            data: { medId: med.id, horario, tipo }
+          });
+        });
+      } else {
+        // Fallback: notificação simples (sem SW controller)
+        new Notification(titulo, {
+          body: corpo,
+          icon: 'icons/icon-192.png',
+          tag:  `med-${med.id}-${horario}`,
+          requireInteraction: true
+        });
+      }
+    }
+
+    // 2. Som via Web Audio
+    if(tipo === 'primario') {
+      tocarSom(cfg.toque || 'campanhia');
       vibrar('alerta');
-    } else if (tipo === 'reforco') {
+    } else {
       tocarSom('alerta');
       vibrar('reforco');
     }
 
-    // Notificação nativa do sistema (aparece mesmo com app em background)
-    if (Notification.permission === 'granted' && document.hidden) {
-      const notif = new Notification(`💊 ${med.nome} — hora de tomar!`, {
-        body: `${med.dose} · ${horario}${med.instrucoes ? '\n' + med.instrucoes : ''}`,
-        icon: 'icons/icon-192.png',
-        badge: 'icons/icon-72.png',
-        tag: `med-${med.id}-${horario}`,
-        requireInteraction: true,
-        vibrate: [300, 100, 300]
-      });
-      notif.onclick = () => { window.focus(); notif.close(); mostrarNotifMed(med, horario); };
+    // 3. Mostrar overlay no app se estiver aberto
+    if(!document.hidden) {
+      mostrarNotifMed(med, horario);
     }
-
-    // Mostrar overlay no app
-    mostrarNotifMed(med, horario);
   }
 
   function mostrarNotifMed(med, horario) {
@@ -3003,8 +3110,6 @@ Regras:
 
   /* ── INICIALIZAÇÃO ──────────────────────────────────────────── */
   function init() {
-    // Primeira abertura: app limpo, sem dados demo
-    // Não carrega nada automaticamente — usuário adiciona seus próprios remédios
     iniciarRelogio();
     renderHome();
 
@@ -3017,24 +3122,45 @@ Regras:
     }
     if(cfg.nome) document.getElementById('nomeUsuario').textContent = cfg.nome;
 
-    // Salvar api key do campo se presente
     const k = document.getElementById('apikeyInput').value.trim();
     if(k) DB.apikey = k;
 
-    // Iniciar verificador de alertas
+    // Estado inicial no historico do browser
+    history.replaceState({ tela: 'home' }, '', '#home');
+
+    // Botao Voltar do Android / browser
+    window.addEventListener('popstate', function(e) {
+      voltarTela();
+    });
+
+    // Reagendar alarmes ao voltar do background
+    document.addEventListener('visibilitychange', function() {
+      if(!document.hidden) {
+        setTimeout(agendarTodasNotificacoes, 500);
+        verificarAlertas();
+        if(telaAtual === 'home') renderHome();
+      }
+    });
+
+    // Iniciar alertas e agendar notificacoes
     iniciarAlertas();
 
-    // Solicitar permissão de notificação do browser
-    if('Notification' in window && Notification.permission==='default') {
-      Notification.requestPermission();
+    // Solicitar permissao de notificacao (com delay para nao assustar)
+    if('Notification' in window && Notification.permission === 'default') {
+      setTimeout(function() {
+        Notification.requestPermission().then(function(p) {
+          if(p === 'granted') agendarTodasNotificacoes();
+        });
+      }, 3000);
     }
   }
 
   /* ── API PÚBLICA ────────────────────────────────────────────── */
   return {
-    go, irCamera, irFormManual, salvarForm, confirmarExcluir, excluirMed,
+    go, voltarTela, irCamera, irFormManual, salvarForm, confirmarExcluir, excluirMed,
     onFotoSelecionada, simularReceita, salvarResultadoIA, renderIAResultado,
     confirmarNotif, fecharNotif, abrirModal, fecharModal, toast,
+    agendarTodasNotificacoes,
     calMudar, toggleCfg, togglePausar,
     editarNome, salvarNome, editarCuidador, salvarCuidador,
     editarApiKey, salvarApiKey, testarApiKey, toggleVerChave, apagarApiKey,
