@@ -1112,6 +1112,80 @@ input[type=range]::-webkit-slider-thumb{
   <!-- ══════════════════════════════════════════
        TELA CONFIGURAÇÕES
   ══════════════════════════════════════════ -->
+  <!-- ══════════════════════════════════════════
+       TELA PRESSÃO ARTERIAL
+  ══════════════════════════════════════════ -->
+  <div class="screen" id="s-pressao">
+    <div class="tb">
+      <h1>🩺 Pressão Arterial</h1>
+      <p>Monitoramento e relatório</p>
+    </div>
+    <div class="ct anim" id="pressaoContent">
+      <!-- preenchido pelo JS -->
+    </div>
+  </div>
+
+  <!-- FORMULÁRIO REGISTRO PRESSÃO -->
+  <div class="screen" id="s-pressao-form">
+    <div class="tb">
+      <button class="tb-back" id="pressaoFormBack">← Voltar</button>
+      <h1 id="pressaoFormTitle">Registrar Pressão</h1>
+      <p>Informe os valores medidos</p>
+    </div>
+    <div class="ct">
+      <div class="card cp">
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+          <div class="campo" style="margin-bottom:0">
+            <label>Data *</label>
+            <input type="date" id="pData">
+          </div>
+          <div class="campo" style="margin-bottom:0">
+            <label>Hora *</label>
+            <input type="time" id="pHora">
+          </div>
+        </div>
+
+        <div style="background:var(--az2);border-radius:13px;padding:12px 14px;margin-bottom:16px;font-size:13px;font-weight:700;color:#1D4ED8;line-height:1.6">
+          💡 Os valores são registrados em <strong>mmHg</strong> (milímetros de mercúrio).
+          Anote logo após a medição para maior precisão.
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:6px">
+          <div class="campo" style="margin-bottom:0">
+            <label style="font-size:12px">Sistólica (SYS)</label>
+            <input type="number" id="pSis" placeholder="120" min="50" max="250"
+              style="font-size:22px;font-weight:900;text-align:center;padding:14px">
+          </div>
+          <div class="campo" style="margin-bottom:0">
+            <label style="font-size:12px">Diastólica (DIA)</label>
+            <input type="number" id="pDia" placeholder="80" min="30" max="150"
+              style="font-size:22px;font-weight:900;text-align:center;padding:14px">
+          </div>
+          <div class="campo" style="margin-bottom:0">
+            <label style="font-size:12px">Pulso (bpm)</label>
+            <input type="number" id="pPul" placeholder="70" min="30" max="200"
+              style="font-size:22px;font-weight:900;text-align:center;padding:14px">
+          </div>
+        </div>
+
+        <div id="pressaoClassif" style="border-radius:12px;padding:10px 14px;margin-top:10px;
+          font-size:14px;font-weight:800;text-align:center;display:none"></div>
+
+        <div class="campo" style="margin-top:14px;margin-bottom:0">
+          <label>Observações</label>
+          <input type="text" id="pObs" placeholder="Ex: Em repouso, após exercício, com dor...">
+        </div>
+      </div>
+
+      <button class="btn btn-g" style="font-size:18px;padding:19px" onclick="App.salvarPressao()">
+        💾 Salvar medição
+      </button>
+      <div id="pressaoErro" style="display:none;background:var(--vm2);border-radius:13px;
+        padding:12px 14px;margin-top:10px;font-size:14px;font-weight:700;color:#991B1B;text-align:center"></div>
+    </div>
+  </div>
+
   <div class="screen" id="s-config">
     <div class="tb"><h1>Configurações</h1><p>Personalize o app para você</p></div>
     <div class="ct anim-d" id="configContent"></div>
@@ -1186,6 +1260,9 @@ input[type=range]::-webkit-slider-thumb{
     <button class="nb" id="nb-agenda" onclick="App.go('agenda')">
       <span class="nb-ic">📅</span><span class="nb-lb">Agenda</span>
     </button>
+    <button class="nb" id="nb-pressao" onclick="App.go('pressao')">
+      <span class="nb-ic">🩺</span><span class="nb-lb">Pressão</span>
+    </button>
     <button class="nb" id="nb-config" onclick="App.go('config')">
       <span class="nb-ic">⚙️</span><span class="nb-lb">Config.</span>
     </button>
@@ -1204,7 +1281,7 @@ input[type=range]::-webkit-slider-thumb{
 ═══════════════════════════════════════════════════════════════════ */
 
 /* ── CONSTANTES ──────────────────────────────────────────────────── */
-const APP_VERSION  = '2.0.0';
+const APP_VERSION  = '2.1.0';
 
 /* ══════════════════════════════════════════════════════════════
    CONFIGURAÇÃO DO SUPABASE — PREENCHIDA PELO DONO DO APP
@@ -1278,6 +1355,8 @@ const DB = {
   set apikey(v)      { localStorage.setItem(this._k('apikey'), v) },
   get agenda()       { try { return JSON.parse(localStorage.getItem(this._k('agenda'))||'[]') } catch{ return [] } },
   set agenda(v)      { localStorage.setItem(this._k('agenda'), JSON.stringify(v)) },
+  get pressao()      { try { return JSON.parse(localStorage.getItem(this._k('pressao'))||'[]') } catch{ return [] } },
+  set pressao(v)     { localStorage.setItem(this._k('pressao'), JSON.stringify(v)) },
 
   // Limpar todos os dados do usuário atual
   limparDadosUsuario() {
@@ -1410,6 +1489,7 @@ const App = (() => {
       'remedios':  renderRemedios,
       'historico': renderHistorico,
       'agenda':    renderAgenda,
+      'pressao':   renderPressao,
       'config':    renderConfig,
     };
     if(renders[tela]) renders[tela]();
@@ -1423,7 +1503,7 @@ const App = (() => {
     const telasAuth = ['login','cadastro','recuperar'];
     const nav = document.getElementById('nav');
     if(nav) nav.style.display = telasAuth.includes(para) ? 'none' : '';
-    ['home','remedios','agenda','config'].forEach(t=>{
+    ['home','remedios','agenda','pressao','config'].forEach(t=>{
       document.getElementById('nb-'+t)?.classList.toggle('on', t===para);
     });
     telaAtual = para;
@@ -1939,6 +2019,28 @@ const App = (() => {
       tomadosList.forEach(e => el.appendChild(cardMed(e)));
     }
 
+    // Banner pressão na home — último registro
+    const ultimaPress = DB.pressao.sort((a,b)=>b.dataHora.localeCompare(a.dataHora))[0];
+    if(ultimaPress) {
+      const cl = classificarPressao(ultimaPress.sis, ultimaPress.dia);
+      const dtPress = new Date(ultimaPress.dataHora.slice(0,10)+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
+      el.insertAdjacentHTML('beforeend', `
+        <div onclick="App.go('pressao')"
+          style="background:${cl?.bg||'var(--c7)'};border-radius:14px;
+            padding:12px 15px;margin-bottom:10px;cursor:pointer;
+            display:flex;align-items:center;gap:12px;border-left:4px solid ${cl?.cor||'var(--c4)'}">
+          <span style="font-size:24px">🩺</span>
+          <div style="flex:1">
+            <div style="font-size:12px;font-weight:800;color:var(--c3)">ÚLTIMA MEDIÇÃO · ${dtPress}</div>
+            <div style="font-size:18px;font-weight:900;color:${cl?.cor||'var(--c1)'}">
+              ${ultimaPress.sis}/${ultimaPress.dia} mmHg${ultimaPress.pul?' · '+ultimaPress.pul+' bpm':''}
+            </div>
+            ${cl?`<div style="font-size:12px;font-weight:700;color:${cl.cor}">${cl.emoji} ${cl.label}</div>`:''}
+          </div>
+          <span style="color:var(--c4);font-size:18px">›</span>
+        </div>`);
+    }
+
     // Próxima consulta/exame
     const hoje2 = hojeStr();
     const proximaConsulta = DB.agenda
@@ -2432,6 +2534,363 @@ const App = (() => {
     DB.agenda
       .filter(i => !i.concluido && i.data >= hoje)
       .forEach(item => agendarAlertasConsulta(item));
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     MÓDULO PRESSÃO ARTERIAL
+     Registro, histórico, classificação e exportação PDF
+  ═══════════════════════════════════════════════════════════ */
+
+  // Classificação conforme diretrizes da SBH (Sociedade Brasileira de Hipertensão)
+  function classificarPressao(sis, dia) {
+    if(!sis || !dia) return null;
+    if(sis < 120 && dia < 80)  return { label: 'Ótima',          cor: '#16a34a', bg: '#dcfce7', emoji: '✅' };
+    if(sis < 130 && dia < 85)  return { label: 'Normal',          cor: '#15803d', bg: '#f0fdf4', emoji: '✅' };
+    if(sis < 140 && dia < 90)  return { label: 'Limítrofe',       cor: '#ca8a04', bg: '#fefce8', emoji: '⚠️' };
+    if(sis < 160 && dia < 100) return { label: 'Hipert. Estágio 1', cor: '#ea580c', bg: '#fff7ed', emoji: '⚠️' };
+    if(sis < 180 && dia < 110) return { label: 'Hipert. Estágio 2', cor: '#dc2626', bg: '#fef2f2', emoji: '🔴' };
+    return                           { label: 'Hipert. Estágio 3', cor: '#991b1b', bg: '#fef2f2', emoji: '🚨' };
+  }
+
+  let editandoPressaoId = null;
+
+  function renderPressao() {
+    const el = document.getElementById('pressaoContent');
+    if(!el) return;
+    const registros = DB.pressao.sort((a,b) => b.dataHora.localeCompare(a.dataHora));
+
+    el.innerHTML = '';
+
+    // Botões de ação
+    el.insertAdjacentHTML('beforeend', `
+      <div style="display:flex;gap:10px;margin-bottom:16px">
+        <button class="btn btn-g" style="flex:1;font-size:15px;padding:14px"
+          onclick="App.novaRegistroPressao()">
+          ➕ Registrar pressão
+        </button>
+        <button class="btn btn-w" style="flex:1;font-size:15px;padding:14px"
+          onclick="App.exportarPDFPressao()">
+          📄 Exportar PDF
+        </button>
+      </div>
+    `);
+
+    if(!registros.length) {
+      el.insertAdjacentHTML('beforeend', `
+        <div class="empty">
+          <div class="empty-ic">🩺</div>
+          <div class="empty-h">Nenhum registro ainda</div>
+          <div class="empty-p">Registre sua pressão arterial regularmente para acompanhar sua saúde</div>
+        </div>
+      `);
+      return;
+    }
+
+    // Resumo estatístico
+    const ultimos = registros.slice(0, 30);
+    const mediaSis = Math.round(ultimos.reduce((s,r) => s + r.sis, 0) / ultimos.length);
+    const mediaDia = Math.round(ultimos.reduce((s,r) => s + r.dia, 0) / ultimos.length);
+    const mediaPul = Math.round(ultimos.filter(r=>r.pul).reduce((s,r) => s + (r.pul||0), 0) / ultimos.filter(r=>r.pul).length) || '-';
+    const classifMedia = classificarPressao(mediaSis, mediaDia);
+
+    el.insertAdjacentHTML('beforeend', `
+      <div class="card cp" style="margin-bottom:16px;background:${classifMedia?.bg||'var(--card)'}">
+        <div style="font-size:13px;font-weight:800;color:var(--c3);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">
+          Média dos últimos ${ultimos.length} registros
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div style="text-align:center">
+            <div style="font-size:32px;font-weight:900;color:${classifMedia?.cor||'var(--c1)'};line-height:1">${mediaSis}</div>
+            <div style="font-size:11px;font-weight:800;color:var(--c3);margin-top:2px">SYS mmHg</div>
+          </div>
+          <div style="font-size:28px;color:var(--c5);font-weight:300">/</div>
+          <div style="text-align:center">
+            <div style="font-size:32px;font-weight:900;color:${classifMedia?.cor||'var(--c1)'};line-height:1">${mediaDia}</div>
+            <div style="font-size:11px;font-weight:800;color:var(--c3);margin-top:2px">DIA mmHg</div>
+          </div>
+          <div style="width:1px;height:40px;background:var(--c6)"></div>
+          <div style="text-align:center">
+            <div style="font-size:32px;font-weight:900;color:var(--c2);line-height:1">${mediaPul}</div>
+            <div style="font-size:11px;font-weight:800;color:var(--c3);margin-top:2px">PUL bpm</div>
+          </div>
+        </div>
+        ${classifMedia ? `
+          <div style="margin-top:10px;padding:8px 12px;border-radius:10px;
+            background:${classifMedia.cor}22;text-align:center;
+            font-size:14px;font-weight:800;color:${classifMedia.cor}">
+            ${classifMedia.emoji} ${classifMedia.label}
+          </div>` : ''}
+      </div>
+    `);
+
+    // Lista de registros agrupados por mês
+    const porMes = {};
+    registros.forEach(r => {
+      const mes = r.dataHora.slice(0,7); // YYYY-MM
+      if(!porMes[mes]) porMes[mes] = [];
+      porMes[mes].push(r);
+    });
+
+    Object.entries(porMes).forEach(([mes, regs]) => {
+      const [ano, m] = mes.split('-');
+      const nomeMes = new Date(ano, m-1, 1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+      el.insertAdjacentHTML('beforeend', `
+        <div class="st">${nomeMes.charAt(0).toUpperCase()+nomeMes.slice(1)}</div>
+      `);
+
+      // Tabela de registros do mês
+      el.insertAdjacentHTML('beforeend', `
+        <div class="card" style="padding:0;overflow:hidden;margin-bottom:14px">
+          <table style="width:100%;border-collapse:collapse;font-family:var(--f)">
+            <thead>
+              <tr style="background:#1a7f4e">
+                <th style="padding:10px 8px;font-size:12px;font-weight:800;color:#fff;text-align:left">Data</th>
+                <th style="padding:10px 8px;font-size:12px;font-weight:800;color:#fff;text-align:center">Hora</th>
+                <th style="padding:10px 6px;font-size:12px;font-weight:800;color:#fff;text-align:center">SYS</th>
+                <th style="padding:10px 6px;font-size:12px;font-weight:800;color:#fff;text-align:center">DIA</th>
+                <th style="padding:10px 6px;font-size:12px;font-weight:800;color:#fff;text-align:center">PUL</th>
+                <th style="padding:10px 4px;font-size:11px;font-weight:800;color:#fff;text-align:center">Ação</th>
+              </tr>
+            </thead>
+            <tbody id="tabela-${mes}"></tbody>
+          </table>
+        </div>
+      `);
+
+      const tbody = document.getElementById('tabela-'+mes);
+      regs.forEach((r,i) => {
+        const cl = classificarPressao(r.sis, r.dia);
+        const dt = new Date(r.dataHora.slice(0,10)+'T12:00:00');
+        const dataFmt = dt.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'});
+        const horaFmt = r.dataHora.slice(11,16);
+        const bg = i%2===0 ? '#f0fdf4' : '#ffffff';
+        const tr = document.createElement('tr');
+        tr.style.background = bg;
+        tr.innerHTML = `
+          <td style="padding:9px 8px;font-size:13px;font-weight:700;color:var(--c1)">${dataFmt}</td>
+          <td style="padding:9px 8px;font-size:13px;font-weight:700;color:var(--c2);text-align:center">${horaFmt}</td>
+          <td style="padding:9px 6px;font-size:14px;font-weight:900;text-align:center;color:${cl?.cor||'var(--c1)'}">${r.sis}</td>
+          <td style="padding:9px 6px;font-size:14px;font-weight:900;text-align:center;color:${cl?.cor||'var(--c1)'}">${r.dia}</td>
+          <td style="padding:9px 6px;font-size:14px;font-weight:700;text-align:center;color:var(--c2)">${r.pul||'–'}</td>
+          <td style="padding:9px 4px;text-align:center">
+            <button onclick="App.editarPressao('${r.id}')"
+              style="background:none;border:none;font-size:16px;cursor:pointer;padding:4px">✏️</button>
+            <button onclick="App.excluirPressao('${r.id}')"
+              style="background:none;border:none;font-size:16px;cursor:pointer;padding:4px">🗑️</button>
+          </td>
+        `;
+        if(r.obs) {
+          const trObs = document.createElement('tr');
+          trObs.style.background = bg;
+          trObs.innerHTML = `
+            <td colspan="6" style="padding:2px 8px 8px;font-size:12px;color:var(--c3);font-weight:600;font-style:italic">
+              📝 ${r.obs}
+            </td>`;
+          tbody.appendChild(tr);
+          tbody.appendChild(trObs);
+        } else {
+          tbody.appendChild(tr);
+        }
+      });
+    });
+
+    el.insertAdjacentHTML('beforeend','<div style="height:16px"></div>');
+  }
+
+  function novaRegistroPressao() {
+    editandoPressaoId = null;
+    document.getElementById('pressaoFormTitle').textContent = 'Registrar Pressão';
+    document.getElementById('pressaoFormBack').onclick = () => go('pressao');
+    // Data e hora atuais
+    const agora = new Date();
+    document.getElementById('pData').value = hojeStr();
+    document.getElementById('pHora').value = String(agora.getHours()).padStart(2,'0')+':'+String(agora.getMinutes()).padStart(2,'0');
+    document.getElementById('pSis').value  = '';
+    document.getElementById('pDia').value  = '';
+    document.getElementById('pPul').value  = '';
+    document.getElementById('pObs').value  = '';
+    document.getElementById('pressaoClassif').style.display = 'none';
+    document.getElementById('pressaoErro').style.display    = 'none';
+    // Listeners para classificação em tempo real
+    setTimeout(() => {
+      ['pSis','pDia'].forEach(id => {
+        const el = document.getElementById(id);
+        if(el) el.addEventListener('input', atualizarClassifPressao);
+      });
+    }, 100);
+    go('pressao-form');
+  }
+
+  function atualizarClassifPressao() {
+    const sis = parseInt(document.getElementById('pSis')?.value)||0;
+    const dia = parseInt(document.getElementById('pDia')?.value)||0;
+    const el  = document.getElementById('pressaoClassif');
+    if(!el) return;
+    if(!sis || !dia) { el.style.display='none'; return; }
+    const cl = classificarPressao(sis, dia);
+    if(!cl) { el.style.display='none'; return; }
+    el.style.display   = 'block';
+    el.style.background = cl.bg;
+    el.style.color     = cl.cor;
+    el.textContent     = cl.emoji + ' ' + cl.label;
+  }
+
+  function editarPressao(id) {
+    const r = DB.pressao.find(r => r.id === id);
+    if(!r) return;
+    editandoPressaoId = id;
+    document.getElementById('pressaoFormTitle').textContent = 'Editar Registro';
+    document.getElementById('pressaoFormBack').onclick = () => go('pressao');
+    document.getElementById('pData').value = r.dataHora.slice(0,10);
+    document.getElementById('pHora').value = r.dataHora.slice(11,16);
+    document.getElementById('pSis').value  = r.sis;
+    document.getElementById('pDia').value  = r.dia;
+    document.getElementById('pPul').value  = r.pul||'';
+    document.getElementById('pObs').value  = r.obs||'';
+    document.getElementById('pressaoErro').style.display = 'none';
+    setTimeout(atualizarClassifPressao, 100);
+    go('pressao-form');
+  }
+
+  function salvarPressao() {
+    const data = document.getElementById('pData')?.value;
+    const hora = document.getElementById('pHora')?.value;
+    const sis  = parseInt(document.getElementById('pSis')?.value);
+    const dia  = parseInt(document.getElementById('pDia')?.value);
+    const pul  = parseInt(document.getElementById('pPul')?.value)||null;
+    const obs  = document.getElementById('pObs')?.value.trim()||'';
+    const erro = document.getElementById('pressaoErro');
+
+    if(!data)         { erro.textContent='⚠️ Informe a data'; erro.style.display='block'; return; }
+    if(!hora)         { erro.textContent='⚠️ Informe a hora'; erro.style.display='block'; return; }
+    if(!sis||sis<50)  { erro.textContent='⚠️ Informe a pressão sistólica (SYS)'; erro.style.display='block'; return; }
+    if(!dia||dia<30)  { erro.textContent='⚠️ Informe a pressão diastólica (DIA)'; erro.style.display='block'; return; }
+
+    const dataHora = data + 'T' + hora + ':00';
+    const registro = { id: editandoPressaoId || uid(), dataHora, sis, dia, pul, obs };
+
+    const lista = DB.pressao;
+    if(editandoPressaoId) {
+      const idx = lista.findIndex(r => r.id === editandoPressaoId);
+      if(idx >= 0) lista[idx] = registro;
+    } else {
+      lista.push(registro);
+    }
+    DB.pressao = lista;
+
+    go('pressao');
+    renderPressao();
+    toast(editandoPressaoId ? '✅ Registro atualizado!' : '✅ Pressão registrada!');
+    editandoPressaoId = null;
+  }
+
+  function excluirPressao(id) {
+    abrirModal(`
+      <div class="modal-title">🗑️ Excluir registro?</div>
+      <p style="font-size:15px;color:var(--c3);font-weight:600;margin-bottom:20px">Esta ação não pode ser desfeita.</p>
+      <button class="btn btn-vm" onclick="App.confirmarExcluirPressao('${id}')">🗑️ Excluir</button>
+      <button class="btn btn-w" onclick="App.fecharModal()">Cancelar</button>
+    `);
+  }
+
+  function confirmarExcluirPressao(id) {
+    DB.pressao = DB.pressao.filter(r => r.id !== id);
+    fecharModal(); renderPressao();
+    toast('✅ Registro removido');
+  }
+
+  /* ── EXPORTAR PDF DE PRESSÃO ARTERIAL ────────────────────── */
+  function exportarPDFPressao() {
+    const registros = DB.pressao.sort((a,b) => a.dataHora.localeCompare(b.dataHora));
+    if(!registros.length) { toast('⚠️ Nenhum registro para exportar'); return; }
+
+    const cfg      = DB.config;
+    const paciente = cfg.nome || 'Paciente';
+    const dataGer  = new Date().toLocaleDateString('pt-BR');
+
+    // Cabeçalho verde igual à planilha da imagem
+    let linhas = registros.map((r,i) => {
+      const dt   = new Date(r.dataHora.slice(0,10)+'T12:00:00');
+      const data = dt.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'});
+      const hora = r.dataHora.slice(11,16)+':00';
+      const bg   = i%2===0 ? '#d4edda' : '#ffffff';
+      return `<tr style="background:${bg}">
+        <td style="border:1px solid #1a7f4e;padding:7px 10px;font-size:13px;font-weight:700">${data}</td>
+        <td style="border:1px solid #1a7f4e;padding:7px 10px;font-size:13px;text-align:center;font-weight:700">${hora}</td>
+        <td style="border:1px solid #1a7f4e;padding:7px 10px;font-size:14px;text-align:center;font-weight:900;color:#1a5c35">${r.sis}</td>
+        <td style="border:1px solid #1a7f4e;padding:7px 10px;font-size:14px;text-align:center;font-weight:900;color:#1a5c35">${r.dia}</td>
+        <td style="border:1px solid #1a7f4e;padding:7px 10px;font-size:14px;text-align:center;font-weight:700">${r.pul||'–'}</td>
+        ${r.obs ? `<td style="border:1px solid #1a7f4e;padding:7px 10px;font-size:12px;font-style:italic">${r.obs}</td>` : '<td style="border:1px solid #1a7f4e"></td>'}
+      </tr>`;
+    }).join('');
+
+    // Calcular médias
+    const mediaSis = Math.round(registros.reduce((s,r)=>s+r.sis,0)/registros.length);
+    const mediaDia = Math.round(registros.reduce((s,r)=>s+r.dia,0)/registros.length);
+    const comPul   = registros.filter(r=>r.pul);
+    const mediaPul = comPul.length ? Math.round(comPul.reduce((s,r)=>s+(r.pul||0),0)/comPul.length) : null;
+    const classifM = classificarPressao(mediaSis, mediaDia);
+
+    const html = `<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="UTF-8">
+<title>Pressão Arterial — ${paciente}</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: Arial, sans-serif; padding:20px; color:#1a1a1a; }
+  h1 { text-align:center; font-size:22px; font-weight:900; color:#1a7f4e;
+       background:#d4edda; padding:16px; border-radius:8px; margin-bottom:6px; }
+  .sub { text-align:center; font-size:13px; color:#555; margin-bottom:20px; }
+  table { width:100%; border-collapse:collapse; }
+  thead tr { background:#1a7f4e; }
+  thead th { padding:10px; font-size:13px; font-weight:800; color:#fff; border:1px solid #1a7f4e; }
+  .resumo { margin-top:20px; background:#f0fdf4; border:2px solid #1a7f4e;
+            border-radius:8px; padding:14px; }
+  .resumo h3 { color:#1a7f4e; font-size:14px; margin-bottom:10px; }
+  .resumo p  { font-size:13px; color:#333; margin-bottom:4px; font-weight:700; }
+  .classif   { display:inline-block; padding:4px 12px; border-radius:20px;
+               font-weight:900; font-size:14px; margin-top:6px; }
+  .footer    { margin-top:20px; font-size:11px; color:#888; text-align:center; line-height:1.6; }
+  @media print { body { padding:10px; } }
+</style>
+</head><body>
+  <h1>🩺 Planilha de Pressão Arterial</h1>
+  <p class="sub">Paciente: <strong>${paciente}</strong> &nbsp;|&nbsp; Gerado em: ${dataGer} &nbsp;|&nbsp; Total: ${registros.length} registros</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Data</th>
+        <th>Hora</th>
+        <th>Sys – mmHg</th>
+        <th>Dia – mmHg</th>
+        <th>Pul/min.</th>
+        <th>Observações</th>
+      </tr>
+    </thead>
+    <tbody>${linhas}</tbody>
+  </table>
+
+  <div class="resumo">
+    <h3>📊 Resumo estatístico</h3>
+    <p>Média Sistólica (SYS): <strong>${mediaSis} mmHg</strong></p>
+    <p>Média Diastólica (DIA): <strong>${mediaDia} mmHg</strong></p>
+    ${mediaPul ? `<p>Média do Pulso: <strong>${mediaPul} bpm</strong></p>` : ''}
+    ${classifM ? `<span class="classif" style="background:${classifM.bg};color:${classifM.cor}">${classifM.emoji} Classificação média: ${classifM.label}</span>` : ''}
+  </div>
+
+  <p class="footer">
+    Documento gerado pelo aplicativo MedAlert · Apresentar ao médico<br>
+    Classificação conforme diretrizes da Sociedade Brasileira de Hipertensão (SBH)
+  </p>
+</body></html>`;
+
+    // Abrir janela de impressão
+    const win = window.open('', '_blank');
+    if(!win) { toast('⚠️ Permita pop-ups para exportar o PDF'); return; }
+    win.document.write(html);
+    win.document.close();
+    win.onload = () => { win.focus(); win.print(); };
+    toast('📄 Abrindo relatório para imprimir / salvar como PDF');
   }
 
   function renderHistorico() {
@@ -4488,6 +4947,8 @@ Regras:
       medicamentos: DB.medicamentos,
       registros:    DB.registros,
       config:       DB.config,
+      agenda:       DB.agenda,
+      pressao:      DB.pressao,
     };
     // Não incluir a chave API no backup por segurança
 
@@ -4603,7 +5064,8 @@ Regras:
       // Restaurar dados no DB do usuário atual
       DB.medicamentos = meds;
       DB.registros    = regs;
-      if(Array.isArray(dados.agenda)) DB.agenda = dados.agenda;
+      if(Array.isArray(dados.agenda))  DB.agenda  = dados.agenda;
+      if(Array.isArray(dados.pressao)) DB.pressao = dados.pressao;
 
       if(cfg && Object.keys(cfg).length) {
         const cfgAtual = DB.config;
@@ -4701,7 +5163,7 @@ Regras:
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('on'));
     document.getElementById('nav')?.style.setProperty('display','none');
     // Limpar highlights do navbar
-    ['home','remedios','agenda','config'].forEach(t => {
+    ['home','remedios','agenda','pressao','config'].forEach(t => {
       document.getElementById('nb-'+t)?.classList.remove('on');
     });
     // Mostrar login
@@ -4741,7 +5203,7 @@ Regras:
     history.replaceState({ tela: 'home' }, '', '#home');
 
     // Atualizar navbar
-    ['home','remedios','agenda','config'].forEach(t => {
+    ['home','remedios','agenda','pressao','config'].forEach(t => {
       document.getElementById('nb-'+t)?.classList.toggle('on', t === 'home');
     });
 
@@ -5403,6 +5865,8 @@ create policy "Usuário acessa só seus dados"
     fazerBackup, abrirRestaurarBackup, processarBackup, confirmarRestauracao,
     novaAgenda, editarAgenda, salvarAgenda, excluirAgenda, confirmarExcluirAgenda,
     marcarAgendaRealizado, agendarAlertasConsulta, agendarTodosAlertasConsultas,
+    renderPressao, novaRegistroPressao, editarPressao, salvarPressao,
+    excluirPressao, confirmarExcluirPressao, exportarPDFPressao, atualizarClassifPressao,
     confirmarLimpar, limparTudo, exportarPDF,
     renderDetalhe, renderAgenda, renderConfig, onFreqChange, adicionarHora, removerHora,
     selecionarCor, selecionarEmoji, voltarDoForm,
