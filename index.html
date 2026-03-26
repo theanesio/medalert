@@ -1095,7 +1095,7 @@ input[type=range]::-webkit-slider-thumb{
 ═══════════════════════════════════════════════════════════════════ */
 
 /* ── CONSTANTES ──────────────────────────────────────────────────── */
-const APP_VERSION  = '1.8.6';
+const APP_VERSION  = '1.8.7';
 
 /* ══════════════════════════════════════════════════════════════
    CONFIGURAÇÃO DO SUPABASE — PREENCHIDA PELO DONO DO APP
@@ -4316,27 +4316,34 @@ Regras:
       });
       if(error) throw error;
 
-      // Verificar se precisa confirmar e-mail
-      if(data.user && !data.session) {
-        // E-mail de confirmação enviado
-        fecharModal();
-        abrirModal(`
-          <div class="modal-title">📧 Confirme seu e-mail</div>
-          <div style="text-align:center;font-size:48px;margin-bottom:16px">✉️</div>
-          <p style="font-size:15px;font-weight:600;color:var(--c3);text-align:center;line-height:1.6;margin-bottom:20px">
-            Enviamos um link de confirmação para<br>
-            <strong style="color:var(--c1)">${email}</strong><br><br>
-            Abra o e-mail e clique no link para ativar sua conta.
-          </p>
-          <button class="btn btn-g" onclick="App.fecharModal();App.go('login')">← Voltar ao login</button>
-        `);
-      } else if(data.session) {
-        // Login automático após cadastro
+      if(data.session) {
+        // Confirmação de e-mail DESATIVADA no Supabase → entra direto
         const u = data.user;
         entrarNoApp({ id: u.id, email: u.email, nome });
+        toast('✅ Conta criada com sucesso! Bem-vindo(a), ' + nome + '!');
+
+      } else if(data.user && !data.session) {
+        // Confirmação de e-mail ATIVADA → precisa confirmar antes de entrar
+        abrirModal(`
+          <div class="modal-title">📧 Verifique seu e-mail</div>
+          <div style="text-align:center;font-size:48px;margin-bottom:16px">✉️</div>
+          <p style="font-size:15px;font-weight:600;color:var(--c3);text-align:center;line-height:1.6;margin-bottom:16px">
+            Enviamos um link para<br>
+            <strong style="color:var(--c1)">${email}</strong>
+          </p>
+          <div style="background:var(--am2);border-radius:13px;padding:13px 14px;margin-bottom:16px;font-size:13px;font-weight:700;color:var(--am3);line-height:1.6">
+            ⚠️ Verifique também a <strong>pasta de spam/lixo eletrônico</strong>.<br>
+            O e-mail pode demorar alguns minutos.
+          </div>
+          <div style="background:var(--g3);border-radius:13px;padding:13px 14px;margin-bottom:16px;font-size:13px;font-weight:700;color:var(--g4);line-height:1.6">
+            💡 <strong>Dica:</strong> Se não receber em 5 minutos, o administrador do app pode desativar a confirmação de e-mail nas configurações do Supabase para você entrar direto.
+          </div>
+          <button class="btn btn-g" onclick="App.fecharModal();App.go('login')">← Voltar ao login</button>
+        `);
       }
     } catch(e) {
-      mostrarErroAuth(erro, traduzirErroAuth(e.message));
+      const msg = traduzirErroAuth(e.message);
+      mostrarErroAuth(erro, msg);
     } finally {
       btn.textContent = '✅ Criar minha conta'; btn.disabled = false;
     }
