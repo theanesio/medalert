@@ -1095,7 +1095,7 @@ input[type=range]::-webkit-slider-thumb{
 ═══════════════════════════════════════════════════════════════════ */
 
 /* ── CONSTANTES ──────────────────────────────────────────────────── */
-const APP_VERSION  = '1.8.4';
+const APP_VERSION  = '1.8.5';
 
 /* ══════════════════════════════════════════════════════════════
    CONFIGURAÇÃO DO SUPABASE — PREENCHIDA PELO DONO DO APP
@@ -4310,6 +4310,7 @@ Regras:
         email,
         password: senha,
         options: {
+          emailRedirectTo: 'https://theanesio.github.io/medalert/',
           data: { nome, full_name: nome, lgpd_aceito: true, lgpd_data: new Date().toISOString() }
         }
       });
