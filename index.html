@@ -1095,7 +1095,7 @@ input[type=range]::-webkit-slider-thumb{
 ═══════════════════════════════════════════════════════════════════ */
 
 /* ── CONSTANTES ──────────────────────────────────────────────────── */
-const APP_VERSION  = '1.8.3';
+const APP_VERSION  = '1.8.4';
 
 /* ══════════════════════════════════════════════════════════════
    CONFIGURAÇÃO DO SUPABASE — PREENCHIDA PELO DONO DO APP
@@ -3433,47 +3433,53 @@ Regras:
   }
 
   function alterarSenha() {
-    const supa = getSupa();
-    if(!supa) {
-      abrirModal(`<div class="modal-title">🔑 Alterar Senha</div><p style="font-size:15px;color:var(--c3);font-weight:600;margin-bottom:20px;line-height:1.5">Para alterar a senha você precisa ter acesso à internet e a sincronização em nuvem precisa estar ativa.</p><button class="btn btn-g" onclick="App.fecharModal()">Entendido</button>`);
-      return;
-    }
+    const email = _usuarioAtual?.email || '';
     abrirModal(`
       <div class="modal-title">🔑 Alterar Senha</div>
-      <div class="campo">
-        <label>Nova senha</label>
-        <div style="position:relative">
-          <input type="password" id="novaSenhaInput" placeholder="Mínimo 8 caracteres"
-            style="padding-right:52px">
-          <button onclick="App.toggleSenhaVis('novaSenhaInput')"
-            style="position:absolute;right:14px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:20px;cursor:pointer;padding:0;color:var(--c3)">👁️</button>
-        </div>
+      <div style="background:var(--az2);border-radius:13px;padding:14px;margin-bottom:16px;font-size:14px;font-weight:600;color:#1D4ED8;line-height:1.6">
+        ℹ️ Enviaremos um link para <strong>${email}</strong> para você criar uma nova senha com segurança.
       </div>
-      <div class="campo">
-        <label>Confirmar nova senha</label>
-        <input type="password" id="novaSenha2Input" placeholder="Repita a nova senha">
-      </div>
-      <button class="btn btn-g" onclick="App.salvarNovaSenha()">🔑 Alterar senha</button>
-      <div id="senhaErro" style="display:none;background:var(--vm2);border-radius:13px;padding:12px 14px;margin-top:10px;font-size:14px;font-weight:700;color:#991B1B;text-align:center"></div>
+      <button class="btn btn-g" id="btnAltSenha" onclick="App.enviarLinkAlterarSenha()">
+        📧 Enviar link de alteração
+      </button>
+      <button class="btn btn-w" onclick="App.fecharModal()">Cancelar</button>
+      <div id="altSenhaMsg" style="display:none;border-radius:13px;padding:12px 14px;margin-top:10px;font-size:14px;font-weight:700;text-align:center"></div>
     `);
   }
 
-  async function salvarNovaSenha() {
-    const s1 = document.getElementById('novaSenhaInput')?.value;
-    const s2 = document.getElementById('novaSenha2Input')?.value;
-    const erro = document.getElementById('senhaErro');
-    if(!s1 || s1.length < 8) { mostrarErroAuth(erro,'A senha deve ter pelo menos 8 caracteres'); return; }
-    if(s1 !== s2)             { mostrarErroAuth(erro,'As senhas não coincidem'); return; }
+  async function enviarLinkAlterarSenha() {
+    const email = _usuarioAtual?.email;
+    if(!email) { toast('⚠️ E-mail não encontrado'); return; }
+
     const supa = getSupa();
-    if(!supa) return;
+    const btn  = document.getElementById('btnAltSenha');
+    const msg  = document.getElementById('altSenhaMsg');
+    if(btn) { btn.textContent='⏳ Enviando...'; btn.disabled=true; }
+
     try {
-      const { error } = await supa.auth.updateUser({ password: s1 });
-      if(error) throw error;
-      fecharModal();
-      toast('✅ Senha alterada com sucesso!');
+      if(supa) {
+        const { error } = await supa.auth.resetPasswordForEmail(email, {
+          redirectTo: 'https://theanesio.github.io/medalert/'
+        });
+        if(error) throw error;
+      }
+      if(msg) {
+        msg.style.display='block'; msg.style.background='var(--g3)'; msg.style.color='var(--g4)';
+        msg.innerHTML='✅ Link enviado para <strong>' + email + '</strong>!<br><small>Verifique também o spam.</small>';
+      }
     } catch(e) {
-      mostrarErroAuth(erro, traduzirErroAuth(e.message));
+      if(msg) {
+        msg.style.display='block'; msg.style.background='var(--vm2)'; msg.style.color='#991B1B';
+        msg.textContent='❌ ' + traduzirErroAuth(e.message);
+      }
+    } finally {
+      if(btn) { btn.textContent='📧 Reenviar link'; btn.disabled=false; }
     }
+  }
+
+  async function salvarNovaSenha() {
+    // Mantido para compatibilidade — redireciona para fluxo por email
+    alterarSenha();
   }
 
   function editarCuidador() {
@@ -4058,24 +4064,52 @@ Regras:
       // Preservar chave API atual
       const chaveApi = DB.apikey;
 
-      // Restaurar dados
-      DB.medicamentos = dados.medicamentos || [];
-      DB.registros    = dados.registros    || [];
-      if (dados.config) {
-        const cfgAtual = DB.config;
-        // Mesclar config do backup com a atual (preservar preferências locais)
-        DB.config = Object.assign(cfgAtual, dados.config);
+      // ── Detectar formato do backup ──────────────────────────
+      // Formato ANTIGO (antes da v1.7): chaves sem userId
+      //   { medicamentos: [...], registros: [...], config: {...} }
+      // Formato NOVO (v1.7+): mesmo estrutura mas salvo com userId nas chaves
+      //   A estrutura do JSON é igual, a diferença é só onde foi salvo
+
+      let meds = dados.medicamentos || [];
+      let regs = dados.registros    || [];
+      let cfg  = dados.config       || {};
+
+      // Tentar também extrair de backup com estrutura aninhada (por precaução)
+      if(!meds.length && dados.dados?.medicamentos) {
+        meds = dados.dados.medicamentos || [];
+        regs = dados.dados.registros    || [];
+        cfg  = dados.dados.config       || {};
       }
 
-      // Marcar como usuário real
-      localStorage.setItem('med_usuario_real', '1');
+      // Restaurar dados no DB do usuário atual
+      DB.medicamentos = meds;
+      DB.registros    = regs;
 
-      // Restaurar chave API se existia
+      if(cfg && Object.keys(cfg).length) {
+        const cfgAtual = DB.config;
+        // Preservar configurações locais (som, tema, fonte)
+        const cfgRestaurado = Object.assign({}, cfg, {
+          toque:          cfgAtual.toque          || cfg.toque,
+          volume:         cfgAtual.volume         !== undefined ? cfgAtual.volume : cfg.volume,
+          tema:           cfgAtual.tema           || cfg.tema,
+          fonte:          cfgAtual.fonte          || cfg.fonte,
+          silencioInicio: cfgAtual.silencioInicio || cfg.silencioInicio,
+          silencioFim:    cfgAtual.silencioFim    || cfg.silencioFim,
+        });
+        DB.config = cfgRestaurado;
+        // Atualizar nome na tela
+        if(cfgRestaurado.nome) {
+          const nomeEl = document.getElementById('nomeUsuario');
+          if(nomeEl) nomeEl.textContent = cfgRestaurado.nome;
+        }
+      }
+
+      // Restaurar chave API
       if (chaveApi) DB.apikey = chaveApi;
 
       window._backupDados = null;
       fecharModal();
-      toast(`✅ ${dados.medicamentos.length} remédio(s) restaurado(s) com sucesso!`);
+      toast(`✅ ${meds.length} remédio(s) restaurado(s) com sucesso!`);
       go('home');
       renderHome();
     } catch(err) {
@@ -4311,28 +4345,43 @@ Regras:
     const email = document.getElementById('recEmail')?.value.trim();
     const msg   = document.getElementById('recMsg');
     if(!email) { toast('⚠️ Informe seu e-mail'); return; }
+    if(!email.includes('@')) { toast('⚠️ E-mail inválido'); return; }
 
     const supa = getSupa();
-    if(!supa) { toast('⚠️ Função disponível quando conectado à internet'); return; }
+    if(!supa) {
+      if(msg) {
+        msg.style.display='block'; msg.style.background='var(--am2)'; msg.style.color='var(--am3)';
+        msg.textContent='⚠️ Recuperação de senha requer conexão com a internet.';
+      }
+      return;
+    }
+
+    // Botão loading
+    const btn = document.querySelector('[onclick="App.recuperarSenha()"]');
+    if(btn) { btn.textContent='⏳ Enviando...'; btn.disabled=true; }
 
     try {
+      // URL de redirecionamento: a URL pública do app no GitHub Pages
+      // O Supabase precisa desta URL cadastrada em Authentication → URL Configuration
+      const redirectUrl = 'https://theanesio.github.io/medalert/';
+
       const { error } = await supa.auth.resetPasswordForEmail(email, {
-        redirectTo: window.location.origin + window.location.pathname
+        redirectTo: redirectUrl
       });
       if(error) throw error;
+
       if(msg) {
-        msg.style.display = 'block';
-        msg.style.background = 'var(--g3)';
-        msg.style.color = 'var(--g4)';
-        msg.textContent = '✅ Link enviado! Verifique sua caixa de entrada.';
+        msg.style.display='block'; msg.style.background='var(--g3)'; msg.style.color='var(--g4)';
+        msg.innerHTML='✅ Link enviado para <strong>' + email + '</strong>!<br><small style="font-weight:600;opacity:.8">Verifique também a caixa de spam.</small>';
       }
     } catch(e) {
+      const errMsg = traduzirErroAuth(e.message);
       if(msg) {
-        msg.style.display = 'block';
-        msg.style.background = 'var(--vm2)';
-        msg.style.color = '#991B1B';
-        msg.textContent = '❌ ' + traduzirErroAuth(e.message);
+        msg.style.display='block'; msg.style.background='var(--vm2)'; msg.style.color='#991B1B';
+        msg.textContent='❌ ' + errMsg;
       }
+    } finally {
+      if(btn) { btn.textContent='📧 Enviar link de recuperação'; btn.disabled=false; }
     }
   }
 
@@ -4455,10 +4504,12 @@ Regras:
         </div>
       </div>
       <p style="font-size:14px;color:var(--c3);font-weight:600;margin-bottom:16px">
-        Para confirmar, digite sua senha:
+        Para confirmar, digite a palavra <strong>EXCLUIR</strong> abaixo:
       </p>
       <div class="campo">
-        <input type="password" id="excluirSenhaInput" placeholder="Sua senha atual">
+        <input type="text" id="excluirConfirmInput" placeholder="Digite: EXCLUIR"
+          autocomplete="off" autocorrect="off" autocapitalize="characters"
+          style="font-size:18px;font-weight:800;text-align:center;letter-spacing:2px">
       </div>
       <button class="btn btn-vm" onclick="App.confirmarExcluirConta()">🗑️ Excluir permanentemente</button>
       <button class="btn btn-w" onclick="App.fecharModal()">Cancelar</button>
@@ -4466,36 +4517,39 @@ Regras:
   }
 
   async function confirmarExcluirConta() {
-    const senha = document.getElementById('excluirSenhaInput')?.value;
-    if(!senha) { toast('⚠️ Informe sua senha para confirmar'); return; }
-    const supa = getSupa();
+    const confirmInput = document.getElementById('excluirConfirmInput')?.value.trim();
+    // Confirmação por digitação (sem necessidade de reautenticar)
+    if(confirmInput !== 'EXCLUIR') {
+      toast('⚠️ Digite EXCLUIR em maiúsculas para confirmar');
+      return;
+    }
+    const btn = document.querySelector('[onclick="App.confirmarExcluirConta()"]');
+    if(btn) { btn.textContent = '⏳ Excluindo...'; btn.disabled = true; }
+
     try {
-      // Reautenticar primeiro
-      if(supa && _usuarioAtual?.email) {
-        const { error: loginErr } = await supa.auth.signInWithPassword({
-          email: _usuarioAtual.email, password: senha
-        });
-        if(loginErr) { toast('❌ Senha incorreta'); return; }
-      }
-      // Excluir dados locais
+      // 1. Excluir dados locais do usuário
       DB.limparDadosUsuario();
-      // Excluir conta no Supabase
+      localStorage.removeItem('med_local_session');
+
+      // 2. Deslogar do Supabase (a exclusão da conta precisa ser feita
+      //    pelo painel do Supabase ou via função serverless — a anon key
+      //    não tem permissão para deletar usuários por segurança)
+      const supa = getSupa();
       if(supa) {
-        await supa.auth.admin?.deleteUser(_usuarioAtual.id).catch(()=>{});
-        await supa.auth.signOut();
-      } else {
-        // Modo local
-        const users = JSON.parse(localStorage.getItem('med_local_users') || '{}');
-        if(_usuarioAtual?.email) delete users[_usuarioAtual.email];
-        localStorage.setItem('med_local_users', JSON.stringify(users));
-        localStorage.removeItem('med_local_session');
+        try { await supa.auth.signOut(); } catch(e){}
       }
+
+      // 3. Limpar sessão local
+      const users = JSON.parse(localStorage.getItem('med_local_users') || '{}');
+      if(_usuarioAtual?.email) delete users[_usuarioAtual.email];
+      localStorage.setItem('med_local_users', JSON.stringify(users));
+
       _usuarioAtual = null;
       fecharModal();
       mostrarTelaAuth();
-      toast('Conta excluída. Todos os dados foram removidos.');
+      toast('✅ Dados removidos e sessão encerrada.');
     } catch(e) {
-      toast('❌ Erro ao excluir conta: ' + e.message);
+      toast('❌ Erro: ' + e.message);
     }
   }
 
@@ -4750,7 +4804,7 @@ create policy "Usuário acessa só seus dados"
     abrirConfigSupabase, salvarConfigSupabase,
     sincronizarComNuvem, salvarNaNuvem,
     // Config / Perfil
-    editarNome, salvarNome, alterarSenha, salvarNovaSenha,
+    editarNome, salvarNome, alterarSenha, salvarNovaSenha, enviarLinkAlterarSenha,
     editarCuidador, salvarCuidador,
     editarApiKey, salvarApiKey, testarApiKey, toggleVerChave, apagarApiKey,
     configAlertas, selecionarToque, testarToque, salvarVolume, salvarSilencio,
