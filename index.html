@@ -827,23 +827,38 @@ input[type=range]::-webkit-slider-thumb{
   <div class="screen" id="s-adicionar">
     <div class="tb"><h1>Adicionar Remédio</h1><p>Como você quer adicionar?</p></div>
     <div class="ct anim-d">
+
       <div class="add-opt" onclick="App.irCamera()">
         <div class="add-opt-ic" style="background:#E8F5EE">📷</div>
         <div>
-          <div class="add-opt-h">Foto da Receita</div>
-          <div class="add-opt-p">A IA lê a receita e preenche tudo automaticamente</div>
+          <div class="add-opt-h">Foto da Receita Médica</div>
+          <div class="add-opt-p">A IA lê a receita e preenche nome, dose e horários automaticamente</div>
         </div>
       </div>
+
+      <div class="add-opt" onclick="App.abrirBarcode(null,'adicionar')">
+        <div class="add-opt-ic" style="background:#EFF6FF">📦</div>
+        <div>
+          <div class="add-opt-h">Escanear Caixa do Remédio</div>
+          <div class="add-opt-p">Aponta a câmera para o código de barras da caixa para identificar o medicamento</div>
+        </div>
+      </div>
+
       <div class="add-opt" onclick="App.irFormManual(null)">
-        <div class="add-opt-ic" style="background:#EFF6FF">✏️</div>
+        <div class="add-opt-ic" style="background:#FEF3C7">✏️</div>
         <div>
           <div class="add-opt-h">Digitar Manualmente</div>
           <div class="add-opt-p">Preencha os dados do remédio você mesmo</div>
         </div>
       </div>
+
       <div style="background:#F0FDF4;border-radius:14px;padding:14px 15px;border:2px dashed #86EFAC">
         <div style="font-size:13px;font-weight:800;color:#166534;margin-bottom:5px">💡 Dica</div>
-        <div style="font-size:13px;color:#166534;line-height:1.5;font-weight:600">Use a foto para cadastrar mais rápido! A IA lê os remédios e você só precisa confirmar os dados.</div>
+        <div style="font-size:13px;color:#166534;line-height:1.5;font-weight:600">
+          Use a <strong>Foto da Receita</strong> para cadastrar com mais rapidez —
+          a IA preenche tudo automaticamente. O <strong>Código de Barras</strong>
+          serve para identificar o remédio pela caixa.
+        </div>
       </div>
     </div>
   </div>
@@ -1095,7 +1110,7 @@ input[type=range]::-webkit-slider-thumb{
 ═══════════════════════════════════════════════════════════════════ */
 
 /* ── CONSTANTES ──────────────────────────────────────────────────── */
-const APP_VERSION  = '1.8.7';
+const APP_VERSION  = '1.9.0';
 
 /* ══════════════════════════════════════════════════════════════
    CONFIGURAÇÃO DO SUPABASE — PREENCHIDA PELO DONO DO APP
@@ -1935,7 +1950,7 @@ const App = (() => {
     // Botão de reposição por código de barras
     el.insertAdjacentHTML('beforeend', `
       <div style="margin-top:8px">
-        <button class="btn btn-g" onclick="App.abrirBarcode(null)" style="background:var(--az);font-size:16px;padding:16px">
+        <button class="btn btn-g" onclick="App.abrirBarcode(null,'adicionar')" style="background:var(--az);font-size:16px;padding:16px">
           📷 Escanear caixa para repor estoque
         </button>
       </div>
@@ -2816,6 +2831,7 @@ Regras:
   let _zxingReader   = null;  // instância do leitor ZXing
   let _barcodeAtivo  = false; // câmera ligada
   let _barcodemedId  = null;  // med vinculado (se veio do detalhe)
+  let _barcodeOrigem = null;  // 'adicionar' | 'remedios' | 'detalhe'
   let _barcodeStream = null;  // stream da câmera para fechar corretamente
 
   // Parar câmera ao sair da tela
@@ -2838,16 +2854,18 @@ Regras:
     if(video) { video.srcObject = null; }
   }
 
-  function abrirBarcode(medId) {
-    _barcodemedId = medId || null;
+  function abrirBarcode(medId, origem) {
+    _barcodemedId  = medId || null;
+    _barcodeOrigem = origem || (medId ? 'detalhe' : 'remedios');
     pararCameraBarcode();
 
     // Configurar botão voltar
     const back = document.getElementById('barcodeBackBtn');
     if(back) back.onclick = () => {
       pararCameraBarcode();
-      if(_barcodemedId) go('detalhe');
-      else go('remedios');
+      if(_barcodemedId)          go('detalhe');    // veio do detalhe
+      else if(_barcodeOrigem === 'adicionar') go('adicionar'); // veio do +
+      else                       go('remedios');   // veio da lista
     };
 
     // Renderizar conteúdo inicial
@@ -3125,94 +3143,137 @@ Regras:
     const resultado = document.getElementById('barcodeResultado');
     if(!resultado) return;
 
-    // Tentar casar com medicamento já cadastrado
-    const meds = DB.medicamentos.filter(m => m.ativo);
-    let medCasado = null;
+    const nomeProduto = info?.nome || '';
+    const fabricante  = info?.fabricante || '';
 
-    if(_barcodemedId) {
-      // Veio direto do detalhe de um med específico
-      medCasado = meds.find(m => m.id === _barcodemedId);
-    } else if(info?.nome) {
-      // Tentar casar por nome
-      const nomeInfo = info.nome.toLowerCase();
-      medCasado = meds.find(m => {
-        const nomeMed = m.nome.toLowerCase();
-        return nomeInfo.includes(nomeMed) || nomeMed.includes(nomeInfo.split(' ')[0]);
-      });
-    }
-
-    const nomeProduto = info?.nome || 'Produto não identificado';
-    const fabricante  = info?.fonte ? `Fonte: ${info.fonte}` : '';
-
-    let htmlMedSelector = '';
-    if(!medCasado) {
-      // Mostrar seletor de qual med repor
-      htmlMedSelector = `
-        <div class="campo" style="margin-bottom:14px">
-          <label>Para qual remédio é esta caixa?</label>
-          <select id="barcodeSelectMed" style="font-size:16px;padding:14px">
-            <option value="">— Selecione —</option>
-            ${meds.map(m => `<option value="${m.id}">${m.nome} ${m.dose}</option>`).join('')}
-          </select>
-        </div>`;
-    }
-
-    resultado.innerHTML = `
+    // ── CARD com info do produto ─────────────────────────────
+    const cardInfo = `
       <div class="med-result-card">
-        ${info?.imagem ? `<img src="${info.imagem}" style="width:64px;height:64px;object-fit:contain;border-radius:10px;margin-bottom:10px;background:var(--c7);padding:4px" onerror="this.style.display='none'">` : ''}
-        <div class="med-result-nome">${nomeProduto}</div>
+        ${info?.imagem ? `<img src="${info.imagem}" style="width:56px;height:56px;object-fit:contain;border-radius:10px;float:right;margin-left:10px;background:var(--c7);padding:4px" onerror="this.style.display='none'">` : ''}
+        <div class="med-result-nome">${nomeProduto || 'Produto não identificado'}</div>
         <div class="med-result-info">
-          ${fabricante ? fabricante + '<br>' : ''}
+          ${fabricante ? '🏭 ' + fabricante + '<br>' : ''}
           🔢 Código: <span style="font-family:monospace;font-weight:700">${codigo}</span>
           ${info?.quantidade ? '<br>📦 ' + info.quantidade : ''}
         </div>
-        ${!info ? `<div style="font-size:13px;color:var(--am3);font-weight:700;margin-top:8px;background:var(--am2);border-radius:8px;padding:8px 10px">⚠️ Produto não encontrado na base de dados.<br>Você ainda pode repor o estoque manualmente abaixo.</div>` : ''}
-      </div>
+        ${!info ? `
+          <div style="font-size:13px;color:var(--am3);font-weight:700;margin-top:8px;
+            background:var(--am2);border-radius:8px;padding:8px 10px;clear:both">
+            ⚠️ Código não encontrado nas bases de dados. Você pode preencher os dados manualmente.
+          </div>` : ''}
+      </div>`;
 
-      ${htmlMedSelector}
+    // ══════════════════════════════════════════════════════════
+    // FLUXO A — Veio do botão "+" (Adicionar novo remédio)
+    // ══════════════════════════════════════════════════════════
+    if(!_barcodemedId) {
+      resultado.innerHTML = cardInfo + `
+        <div style="font-size:15px;font-weight:800;color:var(--c1);margin-bottom:14px;text-align:center">
+          O que você quer fazer com este remédio?
+        </div>
 
+        <button class="btn btn-g" style="margin-bottom:10px;font-size:17px;padding:18px"
+          onclick="App.cadastrarViaBarcode('${(nomeProduto||'').replace(/'/g,"\'")}','${codigo}')">
+          ➕ Cadastrar este remédio
+        </button>
+
+        <button class="btn btn-w" style="margin-bottom:10px"
+          onclick="App.reiniciarScanner()">
+          📷 Escanear outro código
+        </button>
+
+        <button class="btn btn-w" onclick="App.irFormManual(null);pararCameraBarcode()">
+          ✏️ Digitar manualmente
+        </button>
+      `;
+      return;
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // FLUXO B — Veio do detalhe de um remédio (repor estoque)
+    // ══════════════════════════════════════════════════════════
+    const meds     = DB.medicamentos.filter(m => m.ativo);
+    const medCasado = meds.find(m => m.id === _barcodemedId);
+
+    // Se não tem med vinculado, mostrar seletor
+    const htmlSeletor = !medCasado ? `
+      <div class="campo" style="margin-bottom:14px">
+        <label>Para qual remédio é esta caixa?</label>
+        <select id="barcodeSelectMed" style="font-size:16px;padding:14px">
+          <option value="">— Selecione —</option>
+          ${meds.map(m => `<option value="${m.id}">${m.nome} ${m.dose||''}</option>`).join('')}
+        </select>
+      </div>` : '';
+
+    resultado.innerHTML = cardInfo + htmlSeletor + `
       <div class="card cp" style="margin-bottom:14px">
         <div style="font-size:15px;font-weight:800;color:var(--c1);margin-bottom:14px">
-          📦 ${medCasado ? `Repor estoque de: ${medCasado.nome}` : 'Quantos comprimidos/doses nesta caixa?'}
+          📦 ${medCasado ? `Repor estoque: ${medCasado.nome}` : 'Quantos comprimidos nesta caixa?'}
         </div>
         ${medCasado ? `
-        <div style="background:var(--g3);border-radius:12px;padding:10px 14px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center">
-          <span style="font-size:14px;font-weight:700;color:var(--g4)">Estoque atual</span>
-          <span style="font-size:18px;font-weight:900;color:var(--g)">${medCasado.estoque} comp.</span>
-        </div>` : ''}
+          <div style="background:var(--g3);border-radius:12px;padding:10px 14px;
+            margin-bottom:14px;display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:14px;font-weight:700;color:var(--g4)">Estoque atual</span>
+            <span style="font-size:18px;font-weight:900;color:var(--g)">${medCasado.estoque||0} comp.</span>
+          </div>` : ''}
         <div class="med-result-qtd">
-          <button onclick="App.ajustarQtdBarcode(-10)" style="background:var(--vm2);color:var(--vm);border:none;border-radius:10px;width:44px;height:44px;font-size:22px;font-weight:900;cursor:pointer;font-family:var(--f)">−</button>
+          <button onclick="App.ajustarQtdBarcode(-10)"
+            style="background:var(--vm2);color:var(--vm);border:none;border-radius:10px;
+              width:44px;height:44px;font-size:22px;font-weight:900;cursor:pointer;font-family:var(--f)">−</button>
           <input type="number" id="qtdBarcode" value="30" min="1" max="500"
-            style="flex:1;text-align:center;font-size:28px;font-weight:900;border:2px solid var(--c6);border-radius:12px;padding:12px;font-family:var(--f);color:var(--c1);background:var(--card)">
-          <button onclick="App.ajustarQtdBarcode(10)" style="background:var(--g3);color:var(--g4);border:none;border-radius:10px;width:44px;height:44px;font-size:22px;font-weight:900;cursor:pointer;font-family:var(--f)">+</button>
+            style="flex:1;text-align:center;font-size:28px;font-weight:900;border:2px solid var(--c6);
+              border-radius:12px;padding:12px;font-family:var(--f);color:var(--c1);background:var(--card)">
+          <button onclick="App.ajustarQtdBarcode(10)"
+            style="background:var(--g3);color:var(--g4);border:none;border-radius:10px;
+              width:44px;height:44px;font-size:22px;font-weight:900;cursor:pointer;font-family:var(--f)">+</button>
         </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px" id="qtdRapida">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
           ${[14,20,28,30,60].map(n=>`
             <button onclick="document.getElementById('qtdBarcode').value=${n};App.calcularDiasBarcode()"
-              style="background:var(--c7);border:2px solid var(--c6);border-radius:10px;padding:8px 14px;font-size:14px;font-weight:800;cursor:pointer;font-family:var(--f);color:var(--c2)">
-              ${n}
-            </button>`).join('')}
+              style="background:var(--c7);border:2px solid var(--c6);border-radius:10px;
+                padding:8px 14px;font-size:14px;font-weight:800;cursor:pointer;
+                font-family:var(--f);color:var(--c2)">${n}</button>`).join('')}
         </div>
-        <div style="text-align:center;font-size:13px;font-weight:700;color:var(--g4);background:var(--g3);border-radius:10px;padding:8px;margin-top:12px" id="diasCalcBarcode">
-          ${medCasado ? `Após repor: ${medCasado.estoque + 30} comp. (~${Math.floor((medCasado.estoque+30)/((medCasado.horarios||[1]).length))} dias)` : ''}
+        <div style="text-align:center;font-size:13px;font-weight:700;color:var(--g4);
+          background:var(--g3);border-radius:10px;padding:8px;margin-top:12px" id="diasCalcBarcode">
+          ${medCasado ? `Após repor: ${(medCasado.estoque||0)+30} comp. (~${Math.floor(((medCasado.estoque||0)+30)/((medCasado.horarios||[1]).length))} dias)` : ''}
         </div>
       </div>
-
       <button class="btn btn-g" style="font-size:18px;padding:18px"
         onclick="App.confirmarReposicaoBarcode('${medCasado?.id||''}')">
-        ✅ Confirmar reposição de estoque
+        ✅ Confirmar reposição
       </button>
       <button class="btn btn-w" onclick="App.reiniciarScanner()">
         📷 Escanear outro código
       </button>
     `;
 
-    // Listener para atualizar cálculo ao mudar quantidade
     setTimeout(() => {
       const inp = document.getElementById('qtdBarcode');
       if(inp) inp.addEventListener('input', () => calcularDiasBarcode());
       calcularDiasBarcode(medCasado?.id || '');
     }, 100);
+  }
+
+  // Fluxo A: Pré-preencher formulário de novo remédio com dados do barcode
+  function cadastrarViaBarcode(nome, codigo) {
+    pararCameraBarcode();
+    // Ir para o formulário manual pré-preenchido com o nome identificado
+    irFormManual(null);
+    // Preencher nome após o formulário renderizar
+    setTimeout(() => {
+      const nomeInput = document.getElementById('fNome');
+      if(nomeInput && nome) {
+        nomeInput.value = nome;
+        nomeInput.dispatchEvent(new Event('input'));
+      }
+      // Mostrar toast informativo
+      if(nome) {
+        toast('💊 Nome preenchido automaticamente. Complete os outros dados.');
+      } else {
+        toast('📝 Produto não identificado — preencha o nome manualmente.');
+      }
+    }, 300);
   }
 
   function ajustarQtdBarcode(delta) {
@@ -3353,14 +3414,16 @@ Regras:
   }
 
   // abrirBarcode é o nome público — chama diretamente abrirBarcode_fn
-  function abrirBarcode(medId) {
-    _barcodemedId = medId || null;
+  function abrirBarcode(medId, origem) {
+    _barcodemedId  = medId || null;
+    _barcodeOrigem = origem || (medId ? 'detalhe' : 'remedios');
     pararCameraBarcode();
     const back = document.getElementById('barcodeBackBtn');
     if(back) back.onclick = () => {
       pararCameraBarcode();
-      if(_barcodemedId) go('detalhe');
-      else go('remedios');
+      if(_barcodemedId)          go('detalhe');    // veio do detalhe
+      else if(_barcodeOrigem === 'adicionar') go('adicionar'); // veio do +
+      else                       go('remedios');   // veio da lista
     };
     const ct = document.getElementById('barcodeCt');
     ct.innerHTML = `
@@ -4267,13 +4330,29 @@ Regras:
 
     try {
       const { data, error } = await supa.auth.signInWithPassword({ email, password: senha });
-      if(error) throw error;
+      if(error) {
+        // Verificar se é e-mail não confirmado
+        if(error.message?.toLowerCase().includes('email not confirmed')) {
+          mostrarErroAuth(erro, null);
+          if(erro) {
+            erro.style.display = 'block';
+            erro.innerHTML = `
+              ⚠️ E-mail não confirmado.<br>
+              <button onclick="App.reenviarConfirmacao('${email}')"
+                style="background:var(--g);color:#fff;border:none;border-radius:10px;padding:10px 16px;
+                  font-size:14px;font-weight:800;font-family:var(--f);cursor:pointer;margin-top:10px;width:100%">
+                📧 Reenviar e-mail de confirmação
+              </button>`;
+          }
+          return;
+        }
+        throw error;
+      }
       const u = data.user;
       const meta = u.user_metadata || {};
       entrarNoApp({ id: u.id, email: u.email, nome: meta.nome || meta.full_name || '' });
     } catch(e) {
-      const msg = traduzirErroAuth(e.message);
-      mostrarErroAuth(erro, msg);
+      mostrarErroAuth(erro, traduzirErroAuth(e.message));
     } finally {
       btn.textContent = '🔐 Entrar'; btn.disabled = false;
     }
@@ -4306,6 +4385,7 @@ Regras:
     if(erro) erro.style.display = 'none';
 
     try {
+      // Tentar criar a conta
       const { data, error } = await supa.auth.signUp({
         email,
         password: senha,
@@ -4346,6 +4426,22 @@ Regras:
       mostrarErroAuth(erro, msg);
     } finally {
       btn.textContent = '✅ Criar minha conta'; btn.disabled = false;
+    }
+  }
+
+  async function reenviarConfirmacao(email) {
+    const supa = getSupa();
+    if(!supa) return;
+    try {
+      const { error } = await supa.auth.resend({
+        type: 'signup',
+        email,
+        options: { emailRedirectTo: 'https://theanesio.github.io/medalert/' }
+      });
+      if(error) throw error;
+      toast('📧 E-mail de confirmação reenviado! Verifique também o spam.');
+    } catch(e) {
+      toast('❌ ' + traduzirErroAuth(e.message));
     }
   }
 
@@ -4447,13 +4543,36 @@ Regras:
 
   function traduzirErroAuth(msg) {
     if(!msg) return 'Erro desconhecido';
-    if(msg.includes('Invalid login') || msg.includes('invalid_credentials')) return 'E-mail ou senha incorretos';
-    if(msg.includes('Email not confirmed'))  return 'Confirme seu e-mail antes de entrar';
-    if(msg.includes('User already registered') || msg.includes('already been registered')) return 'Este e-mail já possui uma conta';
-    if(msg.includes('Password should be'))   return 'A senha deve ter pelo menos 8 caracteres';
-    if(msg.includes('Unable to validate')  ) return 'Token inválido ou expirado';
-    if(msg.includes('network') || msg.includes('fetch')) return 'Sem conexão com a internet';
-    if(msg.includes('rate limit'))           return 'Muitas tentativas. Aguarde alguns minutos.';
+    const m = msg.toLowerCase();
+    // Login inválido
+    if(m.includes('invalid login') || m.includes('invalid_credentials') ||
+       m.includes('invalid email or password'))
+      return 'E-mail ou senha incorretos. Verifique os dados e tente novamente.';
+    // E-mail não confirmado
+    if(m.includes('email not confirmed'))
+      return 'E-mail não confirmado. Verifique sua caixa de entrada ou spam.';
+    // Usuário já existe — com orientação clara
+    if(m.includes('user already registered') || m.includes('already been registered') ||
+       m.includes('already registered') || m.includes('email already'))
+      return 'Este e-mail já tem uma conta cadastrada. Use a opção "Esqueci minha senha" se não lembrar a senha.';
+    // Senha fraca
+    if(m.includes('password should be') || m.includes('password is too short'))
+      return 'A senha deve ter pelo menos 8 caracteres.';
+    // Token inválido
+    if(m.includes('unable to validate') || m.includes('token'))
+      return 'Link expirado ou inválido. Solicite um novo.';
+    // Sem rede
+    if(m.includes('network') || m.includes('fetch') || m.includes('failed to fetch'))
+      return 'Sem conexão com a internet. Verifique o Wi-Fi e tente novamente.';
+    // Rate limit
+    if(m.includes('rate limit') || m.includes('too many requests') || m.includes('429'))
+      return 'Muitas tentativas seguidas. Aguarde alguns minutos e tente novamente.';
+    // E-mail inválido
+    if(m.includes('invalid email') || m.includes('unable to validate email'))
+      return 'Endereço de e-mail inválido.';
+    // Projeto pausado (Supabase pausa projetos inativos no plano Free)
+    if(m.includes('project') && m.includes('paused'))
+      return 'Serviço temporariamente indisponível. Tente novamente em alguns minutos.';
     return msg;
   }
 
@@ -4806,7 +4925,7 @@ create policy "Usuário acessa só seus dados"
     agendarTodasNotificacoes,
     calMudar, toggleCfg, togglePausar,
     // Auth
-    fazerLogin, fazerCadastro, recuperarSenha, fazerLogout, confirmarLogout,
+    fazerLogin, fazerCadastro, recuperarSenha, reenviarConfirmacao, fazerLogout, confirmarLogout,
     toggleSenhaVis, verTermos, verPrivacidade,
     excluirMinhaConta, confirmarExcluirConta,
     abrirConfigSupabase, salvarConfigSupabase,
@@ -4819,7 +4938,7 @@ create policy "Usuário acessa só seus dados"
     ajustarFonte, setFonte, toggleTema,
     verificarAtualizacao, forcarAtualizacao,
     finalizarBoasVindas: () => {}, editarEstoque, editarEstoqueManual, salvarEstoque,
-    abrirBarcode, pararCameraBarcode, iniciarScannerBarcode, erroScanner,
+    abrirBarcode, cadastrarViaBarcode, pararCameraBarcode, iniciarScannerBarcode, erroScanner,
     processarCodigoBarras, processarCodigoManual, digitarCodigoManual,
     ajustarQtdBarcode, calcularDiasBarcode, confirmarReposicaoBarcode, reiniciarScanner,
     fazerBackup, abrirRestaurarBackup, processarBackup, confirmarRestauracao,
