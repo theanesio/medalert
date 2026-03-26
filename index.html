@@ -1095,7 +1095,7 @@ input[type=range]::-webkit-slider-thumb{
 ═══════════════════════════════════════════════════════════════════ */
 
 /* ── CONSTANTES ──────────────────────────────────────────────────── */
-const APP_VERSION  = '1.8.2';
+const APP_VERSION  = '1.8.3';
 
 /* ══════════════════════════════════════════════════════════════
    CONFIGURAÇÃO DO SUPABASE — PREENCHIDA PELO DONO DO APP
@@ -4684,33 +4684,59 @@ create policy "Usuário acessa só seus dados"
   }
 
   async function restaurarSessao() {
-    // 1. Tentar Supabase
-    const supa = getSupa();
-    if(supa) {
-      try {
-        const { data } = await supa.auth.getSession();
-        if(data?.session?.user) {
-          const u = data.session.user;
-          entrarNoApp({ id: u.id, email: u.email, nome: u.user_metadata?.nome || '' });
-          return;
+    // Timeout de segurança: se demorar mais de 4s, mostrar login
+    const timeoutId = setTimeout(() => {
+      if(telaAtual === 'login' && !_usuarioAtual) {
+        console.warn('[Auth] Timeout ao restaurar sessão — mostrando login');
+        mostrarTelaAuth();
+      }
+    }, 4000);
+
+    try {
+      // 1. Tentar sessão local primeiro (instantâneo, sem rede)
+      const sessaoLocal = localStorage.getItem('med_local_session');
+      if(sessaoLocal) {
+        try {
+          const u = JSON.parse(sessaoLocal);
+          if(u?.id && u?.email) {
+            clearTimeout(timeoutId);
+            entrarNoApp(u);
+            return;
+          }
+        } catch(e) {
+          localStorage.removeItem('med_local_session');
         }
-      } catch(e) { console.warn('[Auth] Supabase session:', e); }
+      }
+
+      // 2. Tentar Supabase (requer rede)
+      const supa = getSupa();
+      if(supa) {
+        try {
+          const { data, error } = await supa.auth.getSession();
+          if(!error && data?.session?.user) {
+            const u = data.session.user;
+            clearTimeout(timeoutId);
+            entrarNoApp({
+              id:   u.id,
+              email: u.email,
+              nome:  u.user_metadata?.nome || u.user_metadata?.full_name || ''
+            });
+            return;
+          }
+        } catch(e) {
+          console.warn('[Auth] Erro ao verificar sessão Supabase:', e.message);
+        }
+      }
+    } catch(e) {
+      console.warn('[Auth] Erro geral em restaurarSessao:', e.message);
     }
 
-    // 2. Tentar sessão local
-    const sessaoLocal = localStorage.getItem('med_local_session');
-    if(sessaoLocal) {
-      try {
-        const u = JSON.parse(sessaoLocal);
-        if(u?.id && u?.email) { entrarNoApp(u); return; }
-      } catch(e) {}
-    }
-
-    // 3. Nenhuma sessão — mostrar login
+    // 3. Sem sessão válida — mostrar login
+    clearTimeout(timeoutId);
     mostrarTelaAuth();
   }
 
-  /* ── API PÚBLICA   /* ── API PÚBLICA ────────────────────────────────────────────── */
+  /* ── API PÚBLICA ────────────────────────────────────────────── */
   return {
     go, voltarTela, irCamera, irFormManual, salvarForm, confirmarExcluir, excluirMed,
     onFotoSelecionada, simularReceita, salvarResultadoIA, renderIAResultado,
