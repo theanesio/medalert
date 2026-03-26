@@ -993,7 +993,7 @@ input[type=range]::-webkit-slider-thumb{
 ═══════════════════════════════════════════════════════════════════ */
 
 /* ── CONSTANTES ──────────────────────────────────────────────────── */
-const APP_VERSION  = '1.6.0';
+const APP_VERSION  = '1.6.1';
 const CORES = ['#E8F5EE','#EFF6FF','#FEF3C7','#F5F3FF','#FFF0F0','#F0FDF4','#FDF4FF','#FFF7ED'];
 const CORES_TEXT = ['#0F5235','#1D4ED8','#92400E','#5B21B6','#991B1B','#166534','#6B21A2','#9A3412'];
 const EMOJIS = ['💊','💉','🩺','🫀','🧠','👁️','🦷','🦴','🌡️','⭐','🍃','🔵'];
@@ -2608,13 +2608,21 @@ Regras:
   // Parar câmera ao sair da tela
   function pararCameraBarcode() {
     _barcodeAtivo = false;
+    // Parar Quagga se estava rodando
+    if(_zxingReader?.isQuagga) {
+      try { Quagga.stop(); } catch(e){}
+    } else if(_zxingReader) {
+      try { _zxingReader.reset(); } catch(e){}
+    }
+    _zxingReader = null;
+    // Parar stream da câmera
     if(_barcodeStream) {
       _barcodeStream.getTracks().forEach(t => t.stop());
       _barcodeStream = null;
     }
-    if(_zxingReader) {
-      try { _zxingReader.reset(); } catch(e){}
-    }
+    // Limpar vídeo
+    const video = document.getElementById('barcodeVideo');
+    if(video) { video.srcObject = null; }
   }
 
   function abrirBarcode(medId) {
@@ -2663,95 +2671,157 @@ Regras:
 
   async function iniciarScannerBarcode() {
     _barcodeAtivo = true;
-    const status = document.getElementById('barcodeStatus');
+    const status  = document.getElementById('barcodeStatus');
+    const video   = document.getElementById('barcodeVideo');
+    if(!video) return;
 
-    // Carregar ZXing dinamicamente
-    if(!window.ZXingBrowser) {
-      if(status) status.textContent = 'Carregando leitor...';
-      await new Promise((resolve, reject) => {
-        const script = document.createElement('script');
-        script.src = 'https://unpkg.com/@zxing/browser@0.1.4/umd/index.min.js';
-        script.onload = resolve;
-        script.onerror = () => {
-          // Fallback CDN
-          const s2 = document.createElement('script');
-          s2.src = 'https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.4/umd/index.min.js';
-          s2.onload = resolve;
-          s2.onerror = reject;
-          document.head.appendChild(s2);
-        };
-        document.head.appendChild(script);
-      }).catch(() => null);
-    }
-
-    if(!window.ZXingBrowser) {
-      if(status) status.textContent = '❌ Erro ao carregar leitor. Use digitação manual.';
+    // ── 1. Abrir câmera ───────────────────────────────────────
+    try {
+      _barcodeStream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: 'environment' },
+          width:  { ideal: 1280 },
+          height: { ideal: 720 }
+        }
+      });
+    } catch(e) {
+      console.warn('[Barcode] Câmera:', e.name, e.message);
+      if(status) status.textContent = '';
+      const msg = e.name === 'NotAllowedError'
+        ? 'Permissão de câmera negada. Vá em Configurações do Chrome → Permissões → Câmera → Permitir.'
+        : 'Não foi possível acessar a câmera: ' + e.message;
+      erroScanner(msg);
       return;
     }
 
-    const video = document.getElementById('barcodeVideo');
-    if(!video || !_barcodeAtivo) return;
+    if(!_barcodeAtivo){ _barcodeStream.getTracks().forEach(t=>t.stop()); return; }
 
-    try {
-      // Pedir câmera traseira
-      _barcodeStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+    video.srcObject = _barcodeStream;
+    video.setAttribute('playsinline','');
+    video.muted = true;
+    await video.play().catch(e=>console.warn('[Barcode] play:', e));
+    if(status) status.textContent = '🔍 Procurando código de barras...';
+
+    // ── 2. Tentar BarcodeDetector nativo (Android Chrome ≥84) ─
+    if('BarcodeDetector' in window) {
+      console.log('[Barcode] Usando BarcodeDetector nativo');
+      const detector = new BarcodeDetector({
+        formats: ['ean_13','ean_8','code_128','code_39','itf','data_matrix','qr_code','upc_a','upc_e']
       });
+      let ultimoTs = 0;
+      const scanLoop = async () => {
+        if(!_barcodeAtivo) return;
+        const agora = Date.now();
+        if(agora - ultimoTs >= 300) { // checar a cada 300ms
+          ultimoTs = agora;
+          try {
+            const barcodes = await detector.detect(video);
+            if(barcodes.length > 0) {
+              const codigo = barcodes[0].rawValue;
+              console.log('[Barcode] Detectado (nativo):', codigo);
+              pararCameraBarcode();
+              processarCodigoBarras(codigo);
+              return;
+            }
+          } catch(e){ /* frame não processável, ignorar */ }
+        }
+        requestAnimationFrame(scanLoop);
+      };
+      requestAnimationFrame(scanLoop);
+      return;
+    }
 
-      if(!_barcodeAtivo) {
-        _barcodeStream.getTracks().forEach(t => t.stop());
+    // ── 3. Fallback: QuaggaJS (funciona em qualquer browser) ──
+    console.log('[Barcode] BarcodeDetector indisponível, carregando QuaggaJS...');
+    if(status) status.textContent = 'Carregando leitor...';
+
+    const quaggaOk = await carregarScript(
+      'https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js',
+      () => typeof Quagga !== 'undefined'
+    );
+
+    if(!quaggaOk || !_barcodeAtivo) {
+      erroScanner('Não foi possível carregar o leitor de código de barras. Use a digitação manual.');
+      return;
+    }
+
+    if(status) status.textContent = '🔍 Procurando código de barras...';
+
+    // Criar div oculto que o Quagga vai usar (ele precisa de um elemento próprio)
+    let quaggaDiv = document.getElementById('quaggaContainer');
+    if(!quaggaDiv) {
+      quaggaDiv = document.createElement('div');
+      quaggaDiv.id = 'quaggaContainer';
+      quaggaDiv.style.cssText = 'position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;overflow:hidden';
+      document.getElementById('barcodeCt').appendChild(quaggaDiv);
+    }
+
+    // Parar câmera anterior (Quagga gerencia a própria)
+    if(_barcodeStream){ _barcodeStream.getTracks().forEach(t=>t.stop()); _barcodeStream=null; }
+
+    Quagga.init({
+      inputStream: {
+        name: 'Live',
+        type: 'LiveStream',
+        target: quaggaDiv,
+        constraints: {
+          facingMode: 'environment',
+          width: { min: 640, ideal: 1280 },
+          height: { min: 480, ideal: 720 }
+        }
+      },
+      decoder: {
+        readers: ['ean_reader','ean_8_reader','code_128_reader','code_39_reader','i2of5_reader','upc_reader','upc_e_reader']
+      },
+      locate: true,
+      frequency: 5
+    }, function(err) {
+      if(err) {
+        console.warn('[Quagga] init error:', err);
+        erroScanner('Erro ao iniciar leitor. Tente a digitação manual.');
         return;
       }
+      if(!_barcodeAtivo){ Quagga.stop(); return; }
+      Quagga.start();
+      _zxingReader = { isQuagga: true }; // marcador para pararCameraBarcode
 
-      video.srcObject = _barcodeStream;
-      await video.play();
-
-      if(status) status.textContent = '🔍 Procurando código de barras...';
-
-      // Iniciar leitura contínua
-      _zxingReader = new ZXingBrowser.BrowserMultiFormatReader();
-
-      const hints = new Map();
-      // Formatos comuns em medicamentos brasileiros
-      hints.set(2, [
-        ZXingBrowser.BarcodeFormat?.EAN_13,
-        ZXingBrowser.BarcodeFormat?.EAN_8,
-        ZXingBrowser.BarcodeFormat?.CODE_128,
-        ZXingBrowser.BarcodeFormat?.CODE_39,
-        ZXingBrowser.BarcodeFormat?.ITF,
-        ZXingBrowser.BarcodeFormat?.DATA_MATRIX,
-      ].filter(Boolean));
-
-      _zxingReader.hints = hints;
-
-      _zxingReader.decodeFromVideoElement(video, (result, err) => {
+      Quagga.onDetected(function(data) {
         if(!_barcodeAtivo) return;
-        if(result) {
-          const codigo = result.getText();
+        const codigo = data.result?.codeResult?.code;
+        if(codigo && codigo.length >= 4) {
+          console.log('[Quagga] Detectado:', codigo);
           pararCameraBarcode();
           processarCodigoBarras(codigo);
         }
-        // err normalmente é NotFoundException (sem código no frame) — ignorar
       });
+    });
+  }
 
-    } catch(e) {
-      console.warn('[Barcode]', e);
-      if(status) {
-        if(e.name === 'NotAllowedError') {
-          status.textContent = '❌ Permissão de câmera negada';
-          document.getElementById('barcodeCt')?.insertAdjacentHTML('afterbegin', `
-            <div style="background:var(--vm2);border-radius:14px;padding:14px 16px;margin-bottom:14px">
-              <div style="font-size:14px;font-weight:800;color:#991B1B;margin-bottom:6px">📷 Câmera bloqueada</div>
-              <div style="font-size:13px;color:#991B1B;font-weight:600;line-height:1.5">
-                Para liberar: Configurações do celular → Apps → Chrome → Permissões → Câmera → Permitir
-              </div>
-            </div>
-          `);
-        } else {
-          status.textContent = '❌ Erro na câmera. Use digitação manual.';
-        }
-      }
-    }
+  function erroScanner(msg) {
+    const ct = document.getElementById('barcodeCt');
+    if(!ct) return;
+    // Remover overlay da câmera e mostrar erro
+    const overlay = ct.querySelector('.barcode-overlay');
+    if(overlay) overlay.style.display = 'none';
+    ct.insertAdjacentHTML('afterbegin', `
+      <div style="background:var(--vm2);border-radius:16px;padding:20px;margin-bottom:14px;text-align:center">
+        <div style="font-size:36px;margin-bottom:10px">📷</div>
+        <div style="font-size:15px;font-weight:800;color:#991B1B;margin-bottom:8px">Câmera não disponível</div>
+        <div style="font-size:13px;color:#991B1B;font-weight:600;line-height:1.6">${msg}</div>
+      </div>
+    `);
+  }
+
+  function carregarScript(url, testeFn) {
+    return new Promise(resolve => {
+      if(testeFn && testeFn()) { resolve(true); return; }
+      const s = document.createElement('script');
+      s.src = url;
+      s.onload = () => resolve(testeFn ? testeFn() : true);
+      s.onerror = () => resolve(false);
+      document.head.appendChild(s);
+      setTimeout(() => resolve(false), 12000); // timeout 12s
+    });
   }
 
   async function processarCodigoBarras(codigo) {
@@ -3876,7 +3946,7 @@ Regras:
     ajustarFonte, setFonte, toggleTema,
     verificarAtualizacao, forcarAtualizacao,
     finalizarBoasVindas, editarEstoque, editarEstoqueManual, salvarEstoque,
-    abrirBarcode, pararCameraBarcode, iniciarScannerBarcode,
+    abrirBarcode, pararCameraBarcode, iniciarScannerBarcode, erroScanner,
     processarCodigoBarras, processarCodigoManual, digitarCodigoManual,
     ajustarQtdBarcode, calcularDiasBarcode, confirmarReposicaoBarcode, reiniciarScanner,
     fazerBackup, abrirRestaurarBackup, processarBackup, confirmarRestauracao,
