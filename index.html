@@ -1110,7 +1110,7 @@ input[type=range]::-webkit-slider-thumb{
 ═══════════════════════════════════════════════════════════════════ */
 
 /* ── CONSTANTES ──────────────────────────────────────────────────── */
-const APP_VERSION  = '1.9.0';
+const APP_VERSION  = '1.9.1';
 
 /* ══════════════════════════════════════════════════════════════
    CONFIGURAÇÃO DO SUPABASE — PREENCHIDA PELO DONO DO APP
@@ -3056,24 +3056,72 @@ Regras:
   }
 
   async function processarCodigoBarras(codigo) {
-    const resultado = document.getElementById('barcodeResultado');
+    const resultado  = document.getElementById('barcodeResultado');
     const btnDigitar = document.getElementById('btnDigitarCodigo');
-    if(resultado) resultado.style.display = 'block';
+    if(resultado)  resultado.style.display = 'block';
     if(btnDigitar) btnDigitar.style.display = 'none';
 
-    // Feedback imediato
+    // ── Fluxo ADICIONAR: vai direto ao formulário ─────────────
+    // Não precisa esperar a consulta — abre o form e busca em paralelo
+    if(!_barcodemedId) {
+      if(resultado) resultado.innerHTML = `
+        <div style="background:var(--g3);border-radius:14px;padding:16px;text-align:center;margin-bottom:14px">
+          <div style="font-size:28px;margin-bottom:6px">✅</div>
+          <div style="font-size:15px;font-weight:800;color:var(--g4)">Código lido!</div>
+          <div style="font-size:18px;font-weight:900;color:var(--g);margin:4px 0;font-family:monospace">${codigo}</div>
+          <div style="font-size:13px;color:var(--g4);font-weight:600">Abrindo formulário de cadastro...</div>
+        </div>`;
+
+      // Pequeno delay para mostrar o feedback, depois abre o formulário
+      setTimeout(async () => {
+        pararCameraBarcode();
+        // Abrir formulário imediatamente com código
+        irFormManual(null);
+        // Buscar info em paralelo e preencher se encontrar
+        setTimeout(async () => {
+          const info = await consultarMedicamento(codigo);
+          preencherFormComBarcode(codigo, info);
+        }, 100);
+      }, 600);
+      return;
+    }
+
+    // ── Fluxo REPOR ESTOQUE: mostrar resultado para confirmar ──
     if(resultado) resultado.innerHTML = `
       <div style="background:var(--c7);border-radius:14px;padding:20px;text-align:center;margin-bottom:14px">
         <div style="font-size:28px;margin-bottom:8px">🔍</div>
         <div style="font-size:15px;font-weight:800;color:var(--c1)">Código lido!</div>
         <div style="font-size:18px;font-weight:900;color:var(--g);margin:6px 0;font-family:monospace">${codigo}</div>
-        <div style="font-size:13px;color:var(--c3);font-weight:600">Consultando informações do medicamento...</div>
-      </div>
-    `;
+        <div style="font-size:13px;color:var(--c3);font-weight:600">Consultando informações...</div>
+      </div>`;
 
-    // Consultar API de medicamentos
     const info = await consultarMedicamento(codigo);
     mostrarResultadoBarcode(codigo, info);
+  }
+
+  // Preenche o formulário de novo remédio com dados do barcode
+  function preencherFormComBarcode(codigo, info) {
+    const nome     = info?.nome         || '';
+    const principio= info?.principio    || '';
+    const dose     = info?.dose         || '';
+    const fabricante = info?.fabricante || '';
+
+    // Preencher campos disponíveis
+    const fNome = document.getElementById('fNome');
+    const fPrincipio = document.getElementById('fPrincipio');
+    const fDose = document.getElementById('fDose');
+    const fInst = document.getElementById('fInstrucoes');
+
+    if(fNome && nome)      { fNome.value = nome; }
+    if(fPrincipio && principio) { fPrincipio.value = principio; }
+    if(fDose && dose)      { fDose.value = dose; }
+
+    // Toast com resultado da busca
+    if(nome) {
+      toast('✅ Remédio identificado: ' + nome + '. Confira e complete os dados.');
+    } else {
+      toast('📝 Código: ' + codigo + ' · Preencha o nome e os demais dados do remédio.');
+    }
   }
 
   async function consultarMedicamento(codigo) {
@@ -3093,7 +3141,6 @@ Regras:
   }
 
   async function consultarOpenFoodFacts(codigo) {
-    // Open Food Facts tem medicamentos OTC brasileiros
     const resp = await fetch(
       `https://world.openfoodfacts.org/api/v0/product/${codigo}.json`,
       { signal: AbortSignal.timeout(8000) }
@@ -3103,12 +3150,19 @@ Regras:
     if(data.status !== 1 || !data.product) return null;
 
     const p = data.product;
+    const nomeRaw = p.product_name_pt || p.product_name_br || p.product_name || p.generic_name_pt || p.generic_name || p.abbreviated_product_name || '';
+
+    // Tentar extrair dose do nome (ex: "Losartana 50mg")
+    const doseMatch = nomeRaw.match(/(\d+\s*(?:mg|mcg|g|ml|UI|ui))/i);
+
     return {
-      fonte:        'Open Food Facts',
-      nome:         p.product_name_pt || p.product_name || p.abbreviated_product_name || null,
-      fabricante:   p.brands || null,
-      quantidade:   extrairQuantidade(p.quantity || p.net_weight || ''),
-      imagem:       p.image_front_small_url || p.image_url || null,
+      fonte:       'Open Food Facts',
+      nome:        nomeRaw || null,
+      principio:   p.generic_name_pt || p.generic_name || null,
+      fabricante:  p.brands || p.brand_owner || null,
+      dose:        doseMatch ? doseMatch[1] : null,
+      quantidade:  extrairQuantidade(p.quantity || p.net_weight || ''),
+      imagem:      p.image_front_small_url || p.image_front_url || p.image_url || null,
       codigo,
     };
   }
@@ -3163,29 +3217,13 @@ Regras:
           </div>` : ''}
       </div>`;
 
-    // ══════════════════════════════════════════════════════════
-    // FLUXO A — Veio do botão "+" (Adicionar novo remédio)
-    // ══════════════════════════════════════════════════════════
+    // FLUXO A (Adicionar) agora é tratado diretamente em processarCodigoBarras
+    // Este ponto só é atingido no FLUXO B (reposição de estoque)
     if(!_barcodemedId) {
-      resultado.innerHTML = cardInfo + `
-        <div style="font-size:15px;font-weight:800;color:var(--c1);margin-bottom:14px;text-align:center">
-          O que você quer fazer com este remédio?
-        </div>
-
-        <button class="btn btn-g" style="margin-bottom:10px;font-size:17px;padding:18px"
-          onclick="App.cadastrarViaBarcode('${(nomeProduto||'').replace(/'/g,"\'")}','${codigo}')">
-          ➕ Cadastrar este remédio
-        </button>
-
-        <button class="btn btn-w" style="margin-bottom:10px"
-          onclick="App.reiniciarScanner()">
-          📷 Escanear outro código
-        </button>
-
-        <button class="btn btn-w" onclick="App.irFormManual(null);pararCameraBarcode()">
-          ✏️ Digitar manualmente
-        </button>
-      `;
+      // Segurança: se chegar aqui no fluxo de adicionar, redirecionar
+      pararCameraBarcode();
+      irFormManual(null);
+      setTimeout(() => preencherFormComBarcode(codigo, info), 200);
       return;
     }
 
@@ -3257,23 +3295,10 @@ Regras:
 
   // Fluxo A: Pré-preencher formulário de novo remédio com dados do barcode
   function cadastrarViaBarcode(nome, codigo) {
+    // Mantida como fallback — o fluxo principal agora vai direto ao form
     pararCameraBarcode();
-    // Ir para o formulário manual pré-preenchido com o nome identificado
     irFormManual(null);
-    // Preencher nome após o formulário renderizar
-    setTimeout(() => {
-      const nomeInput = document.getElementById('fNome');
-      if(nomeInput && nome) {
-        nomeInput.value = nome;
-        nomeInput.dispatchEvent(new Event('input'));
-      }
-      // Mostrar toast informativo
-      if(nome) {
-        toast('💊 Nome preenchido automaticamente. Complete os outros dados.');
-      } else {
-        toast('📝 Produto não identificado — preencha o nome manualmente.');
-      }
-    }, 300);
+    setTimeout(() => preencherFormComBarcode(codigo, { nome }), 300);
   }
 
   function ajustarQtdBarcode(delta) {
@@ -4938,7 +4963,7 @@ create policy "Usuário acessa só seus dados"
     ajustarFonte, setFonte, toggleTema,
     verificarAtualizacao, forcarAtualizacao,
     finalizarBoasVindas: () => {}, editarEstoque, editarEstoqueManual, salvarEstoque,
-    abrirBarcode, cadastrarViaBarcode, pararCameraBarcode, iniciarScannerBarcode, erroScanner,
+    abrirBarcode, cadastrarViaBarcode, preencherFormComBarcode, pararCameraBarcode, iniciarScannerBarcode, erroScanner,
     processarCodigoBarras, processarCodigoManual, digitarCodigoManual,
     ajustarQtdBarcode, calcularDiasBarcode, confirmarReposicaoBarcode, reiniciarScanner,
     fazerBackup, abrirRestaurarBackup, processarBackup, confirmarRestauracao,
