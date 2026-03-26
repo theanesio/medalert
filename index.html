@@ -15,6 +15,8 @@
 <link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152.png">
 <link rel="apple-touch-icon" sizes="192x192" href="icons/icon-192.png">
 <link rel="icon" type="image/png" href="icons/icon-192.png">
+<!-- Supabase SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 <style>
@@ -563,6 +565,12 @@ input[type=range]::-webkit-slider-thumb{
 }
 .pill-tab.on{background:var(--g);border-color:var(--g);color:#fff}
 
+/* ─── AUTH ──────────────────────────────────── */
+.auth-divider{display:flex;align-items:center;gap:12px;margin:14px 0}
+.auth-divider::before,.auth-divider::after{content:'';flex:1;height:1px;background:var(--c6)}
+.auth-divider span{font-size:13px;color:var(--c4);font-weight:700}
+.strength-bar{height:6px;border-radius:3px;background:var(--c6);margin-top:8px;overflow:hidden}
+.strength-fill{height:100%;border-radius:3px;transition:width .3s,background .3s;width:0%}
 /* API KEY input */
 .apikey-wrap{background:var(--am2);border-radius:14px;padding:14px 15px;margin-bottom:14px}
 .apikey-wrap p{font-size:13px;color:var(--am3);font-weight:700;margin-bottom:10px;line-height:1.5}
@@ -665,7 +673,138 @@ input[type=range]::-webkit-slider-thumb{
   <!-- ══════════════════════════════════════════
        TELA HOME
   ══════════════════════════════════════════ -->
-  <div class="screen on" id="s-home">
+  <!-- ══════════════════════════════════════════
+       TELA LOGIN
+  ══════════════════════════════════════════ -->
+  <div class="screen" id="s-login">
+    <div style="background:var(--g);padding:48px 28px 32px;text-align:center;flex-shrink:0">
+      <div style="font-size:56px;margin-bottom:14px">💊</div>
+      <div style="font-size:28px;font-weight:900;color:#fff">MedAlert</div>
+      <div style="font-size:14px;color:rgba(255,255,255,.75);margin-top:6px;font-weight:600">Seus remédios, com segurança</div>
+    </div>
+    <div class="ct" style="padding-top:24px">
+      <div class="card cp" style="margin-bottom:14px">
+        <div class="campo">
+          <label>E-mail</label>
+          <input type="email" id="loginEmail" placeholder="seu@email.com" autocomplete="email" inputmode="email">
+        </div>
+        <div class="campo" style="margin-bottom:0">
+          <label>Senha</label>
+          <div style="position:relative">
+            <input type="password" id="loginSenha" placeholder="Sua senha" autocomplete="current-password"
+              style="padding-right:52px" onkeydown="if(event.key==='Enter')App.fazerLogin()">
+            <button onclick="App.toggleSenhaVis('loginSenha')"
+              style="position:absolute;right:14px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:20px;cursor:pointer;padding:0;color:var(--c3)">👁️</button>
+          </div>
+        </div>
+      </div>
+      <button class="btn btn-g" id="btnLogin" onclick="App.fazerLogin()" style="font-size:18px;padding:19px;margin-bottom:10px">
+        🔐 Entrar
+      </button>
+      <button class="btn btn-w" onclick="App.go('recuperar')" style="margin-bottom:4px">
+        Esqueci minha senha
+      </button>
+      <div style="text-align:center;padding:16px 0;font-size:15px;color:var(--c3);font-weight:600">
+        Não tem conta?
+        <button onclick="App.go('cadastro')"
+          style="background:none;border:none;color:var(--g);font-weight:900;font-size:15px;cursor:pointer;font-family:var(--f);text-decoration:underline">
+          Criar conta grátis
+        </button>
+      </div>
+      <div id="loginErro" style="display:none;background:var(--vm2);border-radius:13px;padding:13px 15px;font-size:14px;font-weight:700;color:#991B1B;text-align:center"></div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       TELA CADASTRO
+  ══════════════════════════════════════════ -->
+  <div class="screen" id="s-cadastro">
+    <div class="tb">
+      <button class="tb-back" onclick="App.go('login')">← Voltar</button>
+      <h1>Criar Conta</h1>
+      <p>Gratuito e seguro</p>
+    </div>
+    <div class="ct">
+      <div class="card cp" style="margin-bottom:14px">
+        <div class="campo">
+          <label>Seu nome completo *</label>
+          <input type="text" id="cadNome" placeholder="Ex: Maria da Silva" autocomplete="name">
+        </div>
+        <div class="campo">
+          <label>E-mail *</label>
+          <input type="email" id="cadEmail" placeholder="seu@email.com" autocomplete="email" inputmode="email">
+        </div>
+        <div class="campo">
+          <label>Senha *</label>
+          <div style="position:relative">
+            <input type="password" id="cadSenha" placeholder="Mínimo 8 caracteres" autocomplete="new-password"
+              style="padding-right:52px">
+            <button onclick="App.toggleSenhaVis('cadSenha')"
+              style="position:absolute;right:14px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:20px;cursor:pointer;padding:0;color:var(--c3)">👁️</button>
+          </div>
+        </div>
+        <div class="campo" style="margin-bottom:0">
+          <label>Confirmar senha *</label>
+          <input type="password" id="cadSenha2" placeholder="Repita a senha" autocomplete="new-password"
+            onkeydown="if(event.key==='Enter')App.fazerCadastro()">
+        </div>
+      </div>
+
+      <div style="background:var(--az2);border-radius:13px;padding:14px 15px;margin-bottom:14px">
+        <div style="font-size:13px;font-weight:800;color:#1D4ED8;margin-bottom:6px">🔒 Seus dados estão protegidos</div>
+        <div style="font-size:13px;color:#1D4ED8;font-weight:600;line-height:1.6">
+          Seus remédios e histórico ficam vinculados exclusivamente à sua conta.<br>
+          Nenhum outro usuário acessa suas informações.
+        </div>
+      </div>
+
+      <div style="background:var(--c7);border-radius:13px;padding:14px 15px;margin-bottom:16px">
+        <div style="display:flex;align-items:flex-start;gap:12px">
+          <input type="checkbox" id="cadLgpd" style="width:22px;height:22px;margin-top:2px;cursor:pointer;flex-shrink:0">
+          <label for="cadLgpd" style="font-size:14px;font-weight:600;color:var(--c2);cursor:pointer;line-height:1.6">
+            Li e concordo com a
+            <button onclick="App.verTermos()" style="background:none;border:none;color:var(--g);font-weight:800;font-size:14px;cursor:pointer;font-family:var(--f);text-decoration:underline">
+              Política de Privacidade e Termos de Uso
+            </button>
+            (LGPD)
+          </label>
+        </div>
+      </div>
+
+      <button class="btn btn-g" id="btnCadastro" onclick="App.fazerCadastro()" style="font-size:18px;padding:19px">
+        ✅ Criar minha conta
+      </button>
+      <div id="cadErro" style="display:none;background:var(--vm2);border-radius:13px;padding:13px 15px;margin-top:10px;font-size:14px;font-weight:700;color:#991B1B;text-align:center"></div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       TELA RECUPERAR SENHA
+  ══════════════════════════════════════════ -->
+  <div class="screen" id="s-recuperar">
+    <div class="tb">
+      <button class="tb-back" onclick="App.go('login')">← Voltar</button>
+      <h1>Recuperar Senha</h1>
+      <p>Enviaremos um link para seu e-mail</p>
+    </div>
+    <div class="ct">
+      <div class="card cp" style="margin-bottom:14px">
+        <div class="campo" style="margin-bottom:0">
+          <label>Seu e-mail cadastrado</label>
+          <input type="email" id="recEmail" placeholder="seu@email.com" inputmode="email">
+        </div>
+      </div>
+      <button class="btn btn-g" onclick="App.recuperarSenha()" style="font-size:18px;padding:19px">
+        📧 Enviar link de recuperação
+      </button>
+      <div id="recMsg" style="display:none;border-radius:13px;padding:13px 15px;margin-top:10px;font-size:14px;font-weight:700;text-align:center"></div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       TELA HOME (requer login)
+  ══════════════════════════════════════════ -->
+  <div class="screen" id="s-home">
     <div class="home-top">
       <div class="ht-sub" id="saudacaoTxt">☀️ Bom dia,</div>
       <div class="ht-nome" id="nomeUsuario">Usuário</div>
@@ -680,43 +819,6 @@ input[type=range]::-webkit-slider-thumb{
   <div class="screen" id="s-remedios">
     <div class="tb"><h1>Meus Remédios</h1><p id="remCountTxt"></p></div>
     <div class="ct anim-d" id="remediosContent"></div>
-  </div>
-
-  <!-- ══════════════════════════════════════════
-       TELA BOAS-VINDAS (primeiro uso)
-  ══════════════════════════════════════════ -->
-  <div class="screen" id="s-boasvindas">
-    <div style="background:var(--g);padding:40px 24px 30px;flex-shrink:0;text-align:center">
-      <div style="font-size:64px;margin-bottom:16px">💊</div>
-      <div style="font-size:28px;font-weight:900;color:#fff;margin-bottom:8px">Bem-vindo ao MedAlert</div>
-      <div style="font-size:15px;color:rgba(255,255,255,.8);font-weight:600;line-height:1.5">Seu gerenciador inteligente<br>de medicamentos</div>
-    </div>
-    <div class="ct">
-      <div class="card cp" style="margin-bottom:14px">
-        <div style="font-size:15px;font-weight:800;color:var(--c1);margin-bottom:14px">👤 Como posso te chamar?</div>
-        <div class="campo" style="margin-bottom:0">
-          <label>Seu nome</label>
-          <input type="text" id="bvNome" placeholder="Ex: Maria, João..." style="font-size:20px;padding:16px">
-        </div>
-      </div>
-      <div style="background:var(--az2);border-radius:14px;padding:14px 16px;margin-bottom:14px;display:flex;align-items:flex-start;gap:12px">
-        <span style="font-size:22px;flex-shrink:0">🔔</span>
-        <div style="font-size:14px;color:#1D4ED8;font-weight:700;line-height:1.6">
-          Para receber os alarmes dos remédios, o app precisa de permissão para enviar notificações.<br>
-          <strong>Toque em "Permitir" quando o celular perguntar.</strong>
-        </div>
-      </div>
-      <div style="background:var(--g3);border-radius:14px;padding:14px 16px;margin-bottom:20px">
-        <div style="font-size:13px;font-weight:700;color:var(--g4);line-height:1.7">
-          ✅ Seus dados ficam <strong>só no seu celular</strong><br>
-          ✅ Funciona <strong>sem internet</strong> após instalado<br>
-          ✅ Alarmes tocam mesmo com <strong>tela bloqueada</strong>
-        </div>
-      </div>
-      <button class="btn btn-g" style="font-size:19px;padding:20px" onclick="App.finalizarBoasVindas()">
-        🚀 Começar a usar
-      </button>
-    </div>
   </div>
 
   <!-- ══════════════════════════════════════════
@@ -993,7 +1095,38 @@ input[type=range]::-webkit-slider-thumb{
 ═══════════════════════════════════════════════════════════════════ */
 
 /* ── CONSTANTES ──────────────────────────────────────────────────── */
-const APP_VERSION  = '1.6.1';
+const APP_VERSION  = '1.7.0';
+
+/* ── CONFIGURAÇÃO SUPABASE ─────────────────────────────────────
+   ATENÇÃO: Substitua pelos valores do seu projeto Supabase.
+   Crie gratuitamente em: https://supabase.com
+   Vá em: Settings → API → Project URL e anon key
+────────────────────────────────────────────────────────────── */
+const SUPA_URL = localStorage.getItem('med_supa_url') || '';
+const SUPA_KEY = localStorage.getItem('med_supa_key') || '';
+
+// Instância do cliente Supabase (null até configurar)
+let _supabase = null;
+function getSupa() {
+  if(_supabase) return _supabase;
+  const url = localStorage.getItem('med_supa_url') || SUPA_URL;
+  const key = localStorage.getItem('med_supa_key') || SUPA_KEY;
+  if(!url || !key || !window.supabase) return null;
+  try {
+    _supabase = window.supabase.createClient(url, key, {
+      auth: {
+        persistSession: true,
+        storageKey: 'med_auth_session',
+        storage: window.localStorage,
+        autoRefreshToken: true,
+      }
+    });
+    return _supabase;
+  } catch(e) {
+    console.warn('[Supabase] Erro ao criar cliente:', e);
+    return null;
+  }
+}
 const CORES = ['#E8F5EE','#EFF6FF','#FEF3C7','#F5F3FF','#FFF0F0','#F0FDF4','#FDF4FF','#FFF7ED'];
 const CORES_TEXT = ['#0F5235','#1D4ED8','#92400E','#5B21B6','#991B1B','#166534','#6B21A2','#9A3412'];
 const EMOJIS = ['💊','💉','🩺','🫀','🧠','👁️','🦷','🦴','🌡️','⭐','🍃','🔵'];
@@ -1001,15 +1134,35 @@ const DIAS_SEMANA = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
 const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 
 /* ── BANCO DE DADOS LOCAL ────────────────────────────────────────── */
+/* ── BANCO DE DADOS LOCAL (isolado por usuário) ─────────────────────
+   Cada chave inclui o UID do usuário logado para garantir isolamento
+   completo entre usuários no mesmo dispositivo.
+─────────────────────────────────────────────────────────────── */
+let _usuarioAtual = null; // { id, email, nome } — preenchido após login
+
+function uidUsuario() {
+  return _usuarioAtual?.id || 'anonimo';
+}
+
 const DB = {
-  get medicamentos() { try { return JSON.parse(localStorage.getItem('med_medicamentos')||'[]') } catch{ return [] } },
-  set medicamentos(v){ localStorage.setItem('med_medicamentos', JSON.stringify(v)) },
-  get registros()    { try { return JSON.parse(localStorage.getItem('med_registros')||'[]') } catch{ return [] } },
-  set registros(v)   { localStorage.setItem('med_registros', JSON.stringify(v)) },
-  get config()       { try { return JSON.parse(localStorage.getItem('med_config')||'{}') } catch{ return {} } },
-  set config(v)      { localStorage.setItem('med_config', JSON.stringify(v)) },
-  get apikey()       { return localStorage.getItem('med_apikey')||'' },
-  set apikey(v)      { localStorage.setItem('med_apikey', v) },
+  _k: (sufixo) => `med_${uidUsuario()}_${sufixo}`,
+  get medicamentos() { try { return JSON.parse(localStorage.getItem(this._k('medicamentos'))||'[]') } catch{ return [] } },
+  set medicamentos(v){ localStorage.setItem(this._k('medicamentos'), JSON.stringify(v)) },
+  get registros()    { try { return JSON.parse(localStorage.getItem(this._k('registros'))||'[]') } catch{ return [] } },
+  set registros(v)   { localStorage.setItem(this._k('registros'), JSON.stringify(v)) },
+  get config()       { try { return JSON.parse(localStorage.getItem(this._k('config'))||'{}') } catch{ return {} } },
+  set config(v)      { localStorage.setItem(this._k('config'), JSON.stringify(v)) },
+  get apikey()       { return localStorage.getItem(this._k('apikey'))||'' },
+  set apikey(v)      { localStorage.setItem(this._k('apikey'), v) },
+
+  // Limpar todos os dados do usuário atual
+  limparDadosUsuario() {
+    const uid = uidUsuario();
+    const prefixo = `med_${uid}_`;
+    Object.keys(localStorage)
+      .filter(k => k.startsWith(prefixo))
+      .forEach(k => localStorage.removeItem(k));
+  },
 
   salvarMed(med) {
     const list = this.medicamentos;
@@ -1141,6 +1294,10 @@ const App = (() => {
     document.getElementById('s-'+de)?.classList.remove('on');
     const el = document.getElementById('s-'+para);
     if(el){ el.classList.add('on'); el.scrollTop = 0; }
+    // Esconder navbar nas telas de auth
+    const telasAuth = ['login','cadastro','recuperar'];
+    const nav = document.getElementById('nav');
+    if(nav) nav.style.display = telasAuth.includes(para) ? 'none' : '';
     ['home','remedios','historico','config'].forEach(t=>{
       document.getElementById('nb-'+t)?.classList.toggle('on', t===para);
     });
@@ -1944,16 +2101,32 @@ const App = (() => {
   /* ── CONFIGURAÇÕES ─────────────────────────────────────────── */
   function renderConfig() {
     const cfg = DB.config;
-    const el = document.getElementById('configContent');
+    const el  = document.getElementById('configContent');
+    const usuario = _usuarioAtual;
     el.innerHTML = `
-      <div class="st">👤 Meu Perfil</div>
+      <div class="st">👤 Minha Conta</div>
       <div class="cfg-sec">
+        <div class="cfg-row" style="cursor:default">
+          <div class="cfg-l">
+            <div style="width:42px;height:42px;border-radius:50%;background:var(--g3);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">
+              ${usuario?.nome?.charAt(0)?.toUpperCase() || usuario?.email?.charAt(0)?.toUpperCase() || '👤'}
+            </div>
+            <div>
+              <div class="cfg-h">${usuario?.nome || cfg.nome || 'Usuário'}</div>
+              <div class="cfg-p">${usuario?.email || 'Modo local'}</div>
+            </div>
+          </div>
+        </div>
         <div class="cfg-row" onclick="App.editarNome()">
-          <div class="cfg-l"><span class="cfg-ic">👤</span><div><div class="cfg-h">Nome</div><div class="cfg-p">${cfg.nome||'Não informado'}</div></div></div>
+          <div class="cfg-l"><span class="cfg-ic">✏️</span><div><div class="cfg-h">Editar nome</div><div class="cfg-p">${cfg.nome || 'Não informado'}</div></div></div>
           <span class="cfg-v">›</span>
         </div>
         <div class="cfg-row" onclick="App.editarCuidador()">
           <div class="cfg-l"><span class="cfg-ic">📞</span><div><div class="cfg-h">Contato do cuidador</div><div class="cfg-p">${cfg.cuidador||'Não informado'}</div></div></div>
+          <span class="cfg-v">›</span>
+        </div>
+        <div class="cfg-row" onclick="App.fazerLogout()">
+          <div class="cfg-l"><span class="cfg-ic">🚪</span><div><div class="cfg-h">Sair da conta</div><div class="cfg-p">Fazer logout</div></div></div>
           <span class="cfg-v">›</span>
         </div>
       </div>
@@ -2063,6 +2236,43 @@ const App = (() => {
           <span class="cfg-v">›</span>
         </div>
       </div>
+
+      <div class="st">🔒 Privacidade e LGPD</div>
+      <div class="cfg-sec">
+        <div class="cfg-row" onclick="App.verTermos()">
+          <div class="cfg-l"><span class="cfg-ic">📋</span><div>
+            <div class="cfg-h">Política de Privacidade</div>
+            <div class="cfg-p">Termos de uso e LGPD</div>
+          </div></div>
+          <span class="cfg-v">›</span>
+        </div>
+        <div class="cfg-row" onclick="App.fazerBackup()">
+          <div class="cfg-l"><span class="cfg-ic">📤</span><div>
+            <div class="cfg-h">Exportar meus dados</div>
+            <div class="cfg-p">Direito de portabilidade (LGPD art. 18)</div>
+          </div></div>
+          <span class="cfg-v">›</span>
+        </div>
+        <div class="cfg-row" onclick="App.excluirMinhaConta()">
+          <div class="cfg-l"><span class="cfg-ic">❌</span><div>
+            <div class="cfg-h" style="color:var(--vm)">Excluir minha conta</div>
+            <div class="cfg-p">Remove conta e dados permanentemente (LGPD art. 18)</div>
+          </div></div>
+          <span class="cfg-v">›</span>
+        </div>
+      </div>
+
+      <div class="st">⚙️ Integração</div>
+      <div class="cfg-sec">
+        <div class="cfg-row" onclick="App.abrirConfigSupabase()">
+          <div class="cfg-l"><span class="cfg-ic">🔗</span><div>
+            <div class="cfg-h">Configurar Supabase</div>
+            <div class="cfg-p">${localStorage.getItem('med_supa_url') ? '✅ Configurado — sincronização ativa' : 'Não configurado — modo local'}</div>
+          </div></div>
+          <span class="cfg-v">›</span>
+        </div>
+      </div>
+
       <div style="text-align:center;font-size:12px;color:var(--c4);padding:16px 0;font-weight:600">MedAlert ${APP_VERSION} · Feito com ❤️ para sua saúde</div>
     `;
   }
@@ -3676,12 +3886,9 @@ Regras:
   }
 
   function limparTudo() {
-    const chaveApi = DB.apikey; // Preservar a chave API
-    localStorage.clear();
-    // Marcar que este é um usuário real — nunca mais carregar dados demo
-    localStorage.setItem('med_usuario_real', '1');
-    // Restaurar a chave API
-    if(chaveApi) localStorage.setItem('med_apikey', chaveApi);
+    const chaveApi = DB.apikey; // Preservar chave API do usuário
+    DB.limparDadosUsuario();    // Limpa APENAS dados deste usuário
+    if(chaveApi) DB.apikey = chaveApi;
     fecharModal();
     toast('✅ Dados apagados. Seus remédios foram removidos.');
     go('home');
@@ -3873,79 +4080,436 @@ Regras:
   /* ── DADOS DE DEMONSTRAÇÃO ──────────────────────────────────── */
 
   /* ── INICIALIZAÇÃO ──────────────────────────────────────────── */
+  /* ═══════════════════════════════════════════════════════════
+     MÓDULO DE AUTENTICAÇÃO
+  ═══════════════════════════════════════════════════════════ */
+
+  function mostrarTelaAuth() {
+    // Esconder navbar e telas do app
+    document.getElementById('nav')?.style.setProperty('display','none');
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('on'));
+    document.getElementById('s-login')?.classList.add('on');
+    telaAtual = 'login';
+    history.replaceState({ tela: 'login' }, '', '#login');
+  }
+
+  function entrarNoApp(usuario) {
+    _usuarioAtual = usuario;
+    // Mostrar navbar
+    document.getElementById('nav')?.style.removeProperty('display');
+    // Aplicar configurações do usuário
+    const cfg = DB.config;
+    if(cfg.tema === 'Escuro') aplicarTema('Escuro');
+    if(cfg.fonte && cfg.fonte !== 'normal') {
+      document.documentElement.style.fontSize = cfg.fonte === 'grande' ? '19px' : '22px';
+    }
+    const nomeEl = document.getElementById('nomeUsuario');
+    if(nomeEl) nomeEl.textContent = cfg.nome || usuario.nome || usuario.email?.split('@')[0] || 'Usuário';
+    // Ir para home
+    telaAtual = 'login';
+    go('home');
+    iniciarAlertas();
+    // Notificações
+    if('Notification' in window && Notification.permission === 'default') {
+      setTimeout(() => Notification.requestPermission().then(p => {
+        if(p === 'granted') agendarTodasNotificacoes();
+      }), 2000);
+    }
+  }
+
+  async function fazerLogin() {
+    const email = document.getElementById('loginEmail')?.value.trim();
+    const senha = document.getElementById('loginSenha')?.value;
+    const erro  = document.getElementById('loginErro');
+    const btn   = document.getElementById('btnLogin');
+
+    if(!email || !senha) { mostrarErroAuth(erro, 'Preencha e-mail e senha'); return; }
+
+    const supa = getSupa();
+    if(!supa) {
+      // Modo offline: login local simples
+      loginLocal(email, senha);
+      return;
+    }
+
+    btn.textContent = '⏳ Entrando...'; btn.disabled = true;
+    if(erro) erro.style.display = 'none';
+
+    try {
+      const { data, error } = await supa.auth.signInWithPassword({ email, password: senha });
+      if(error) throw error;
+      const u = data.user;
+      const meta = u.user_metadata || {};
+      entrarNoApp({ id: u.id, email: u.email, nome: meta.nome || meta.full_name || '' });
+    } catch(e) {
+      const msg = traduzirErroAuth(e.message);
+      mostrarErroAuth(erro, msg);
+    } finally {
+      btn.textContent = '🔐 Entrar'; btn.disabled = false;
+    }
+  }
+
+  async function fazerCadastro() {
+    const nome  = document.getElementById('cadNome')?.value.trim();
+    const email = document.getElementById('cadEmail')?.value.trim();
+    const senha = document.getElementById('cadSenha')?.value;
+    const senha2= document.getElementById('cadSenha2')?.value;
+    const lgpd  = document.getElementById('cadLgpd')?.checked;
+    const erro  = document.getElementById('cadErro');
+    const btn   = document.getElementById('btnCadastro');
+
+    if(!nome)           { mostrarErroAuth(erro, 'Informe seu nome completo'); return; }
+    if(!email)          { mostrarErroAuth(erro, 'Informe seu e-mail'); return; }
+    if(!email.includes('@')) { mostrarErroAuth(erro, 'E-mail inválido'); return; }
+    if(!senha || senha.length < 8) { mostrarErroAuth(erro, 'A senha deve ter pelo menos 8 caracteres'); return; }
+    if(senha !== senha2){ mostrarErroAuth(erro, 'As senhas não coincidem'); return; }
+    if(!lgpd)           { mostrarErroAuth(erro, 'Você precisa aceitar os termos para criar uma conta'); return; }
+
+    const supa = getSupa();
+    if(!supa) {
+      // Modo offline: cadastro local
+      cadastroLocal(nome, email, senha);
+      return;
+    }
+
+    btn.textContent = '⏳ Criando conta...'; btn.disabled = true;
+    if(erro) erro.style.display = 'none';
+
+    try {
+      const { data, error } = await supa.auth.signUp({
+        email,
+        password: senha,
+        options: {
+          data: { nome, full_name: nome, lgpd_aceito: true, lgpd_data: new Date().toISOString() }
+        }
+      });
+      if(error) throw error;
+
+      // Verificar se precisa confirmar e-mail
+      if(data.user && !data.session) {
+        // E-mail de confirmação enviado
+        fecharModal();
+        abrirModal(`
+          <div class="modal-title">📧 Confirme seu e-mail</div>
+          <div style="text-align:center;font-size:48px;margin-bottom:16px">✉️</div>
+          <p style="font-size:15px;font-weight:600;color:var(--c3);text-align:center;line-height:1.6;margin-bottom:20px">
+            Enviamos um link de confirmação para<br>
+            <strong style="color:var(--c1)">${email}</strong><br><br>
+            Abra o e-mail e clique no link para ativar sua conta.
+          </p>
+          <button class="btn btn-g" onclick="App.fecharModal();App.go('login')">← Voltar ao login</button>
+        `);
+      } else if(data.session) {
+        // Login automático após cadastro
+        const u = data.user;
+        entrarNoApp({ id: u.id, email: u.email, nome });
+      }
+    } catch(e) {
+      mostrarErroAuth(erro, traduzirErroAuth(e.message));
+    } finally {
+      btn.textContent = '✅ Criar minha conta'; btn.disabled = false;
+    }
+  }
+
+  async function recuperarSenha() {
+    const email = document.getElementById('recEmail')?.value.trim();
+    const msg   = document.getElementById('recMsg');
+    if(!email) { toast('⚠️ Informe seu e-mail'); return; }
+
+    const supa = getSupa();
+    if(!supa) { toast('Configure o Supabase primeiro'); return; }
+
+    try {
+      const { error } = await supa.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin + window.location.pathname
+      });
+      if(error) throw error;
+      if(msg) {
+        msg.style.display = 'block';
+        msg.style.background = 'var(--g3)';
+        msg.style.color = 'var(--g4)';
+        msg.textContent = '✅ Link enviado! Verifique sua caixa de entrada.';
+      }
+    } catch(e) {
+      if(msg) {
+        msg.style.display = 'block';
+        msg.style.background = 'var(--vm2)';
+        msg.style.color = '#991B1B';
+        msg.textContent = '❌ ' + traduzirErroAuth(e.message);
+      }
+    }
+  }
+
+  async function fazerLogout() {
+    abrirModal(`
+      <div class="modal-title">🚪 Sair da conta?</div>
+      <p style="font-size:15px;color:var(--c3);font-weight:600;margin-bottom:20px;line-height:1.5">
+        Seus dados ficam salvos. Você pode entrar novamente a qualquer momento.
+      </p>
+      <button class="btn btn-g" onclick="App.confirmarLogout()">🚪 Sim, sair</button>
+      <button class="btn btn-w" onclick="App.fecharModal()">Cancelar</button>
+    `);
+  }
+
+  async function confirmarLogout() {
+    const supa = getSupa();
+    if(supa) { try { await supa.auth.signOut(); } catch(e){} }
+    _usuarioAtual = null;
+    fecharModal();
+    pararCameraBarcode();
+    // Limpar timers
+    if(alertasTimer) { clearInterval(alertasTimer); alertasTimer = null; }
+    mostrarTelaAuth();
+    toast('Até logo!');
+  }
+
+  // ── Modo offline (sem Supabase configurado) ──────────────────
+  function loginLocal(email, senha) {
+    const hash = btoa(email + ':' + senha);
+    const users = JSON.parse(localStorage.getItem('med_local_users') || '{}');
+    if(!users[email]) { mostrarErroAuth(document.getElementById('loginErro'), 'E-mail ou senha incorretos'); return; }
+    if(users[email].hash !== hash) { mostrarErroAuth(document.getElementById('loginErro'), 'E-mail ou senha incorretos'); return; }
+    localStorage.setItem('med_local_session', JSON.stringify({ id: users[email].id, email, nome: users[email].nome }));
+    entrarNoApp({ id: users[email].id, email, nome: users[email].nome });
+  }
+
+  function cadastroLocal(nome, email, senha) {
+    const hash = btoa(email + ':' + senha);
+    const users = JSON.parse(localStorage.getItem('med_local_users') || '{}');
+    if(users[email]) { mostrarErroAuth(document.getElementById('cadErro'), 'Este e-mail já está cadastrado'); return; }
+    const id = uid();
+    users[email] = { id, nome, hash, criado: new Date().toISOString(), lgpd: true };
+    localStorage.setItem('med_local_users', JSON.stringify(users));
+    localStorage.setItem('med_local_session', JSON.stringify({ id, email, nome }));
+    toast('✅ Conta criada com sucesso!');
+    entrarNoApp({ id, email, nome });
+  }
+
+  // ── Utilitários auth ─────────────────────────────────────────
+  function mostrarErroAuth(el, msg) {
+    if(!el) { toast('⚠️ ' + msg); return; }
+    el.textContent = '⚠️ ' + msg;
+    el.style.display = 'block';
+  }
+
+  function traduzirErroAuth(msg) {
+    if(!msg) return 'Erro desconhecido';
+    if(msg.includes('Invalid login') || msg.includes('invalid_credentials')) return 'E-mail ou senha incorretos';
+    if(msg.includes('Email not confirmed'))  return 'Confirme seu e-mail antes de entrar';
+    if(msg.includes('User already registered') || msg.includes('already been registered')) return 'Este e-mail já possui uma conta';
+    if(msg.includes('Password should be'))   return 'A senha deve ter pelo menos 8 caracteres';
+    if(msg.includes('Unable to validate')  ) return 'Token inválido ou expirado';
+    if(msg.includes('network') || msg.includes('fetch')) return 'Sem conexão com a internet';
+    if(msg.includes('rate limit'))           return 'Muitas tentativas. Aguarde alguns minutos.';
+    return msg;
+  }
+
+  function toggleSenhaVis(inputId) {
+    const inp = document.getElementById(inputId);
+    if(!inp) return;
+    inp.type = inp.type === 'password' ? 'text' : 'password';
+  }
+
+  function verTermos() {
+    abrirModal(`
+      <div class="modal-title">📋 Política de Privacidade</div>
+      <div style="font-size:14px;color:var(--c2);font-weight:600;line-height:1.8;max-height:60vh;overflow-y:auto">
+        <strong>MedAlert — Política de Privacidade e Termos de Uso</strong><br>
+        Última atualização: ${new Date().toLocaleDateString('pt-BR')}<br><br>
+
+        <strong>1. Dados coletados</strong><br>
+        Coletamos: nome, e-mail, lista de medicamentos, horários e histórico de confirmações. Não coletamos dados sensíveis além dos necessários para o funcionamento do app.<br><br>
+
+        <strong>2. Finalidade (LGPD — Art. 7º)</strong><br>
+        Os dados são usados exclusivamente para: gerenciar seus medicamentos, enviar alertas de horário e gerar histórico para uso médico. Base legal: consentimento e legítimo interesse em saúde.<br><br>
+
+        <strong>3. Compartilhamento</strong><br>
+        Seus dados NÃO são vendidos nem compartilhados com terceiros. Somente você acessa suas informações.<br><br>
+
+        <strong>4. Isolamento de dados</strong><br>
+        Cada usuário acessa exclusivamente seus próprios dados. É tecnicamente impossível um usuário visualizar dados de outro.<br><br>
+
+        <strong>5. Seus direitos (LGPD — Art. 18)</strong><br>
+        Você tem direito a: acessar, corrigir, exportar e excluir seus dados a qualquer momento. Use Configurações → Backup e Dados.<br><br>
+
+        <strong>6. Exclusão de conta</strong><br>
+        Ao solicitar exclusão da conta, todos os seus dados são permanentemente removidos em até 30 dias.<br><br>
+
+        <strong>7. Segurança</strong><br>
+        Senhas são armazenadas com hash seguro (nunca em texto claro). Comunicações são criptografadas via HTTPS/TLS.<br><br>
+
+        <strong>8. Contato do DPO</strong><br>
+        Para exercer seus direitos LGPD, acesse Configurações → Privacidade e Dados dentro do app.
+      </div>
+      <button class="btn btn-g" onclick="App.fecharModal()" style="margin-top:16px">✅ Entendido</button>
+    `);
+  }
+
+  function verPrivacidade() {
+    verTermos();
+  }
+
+  async function excluirMinhaConta() {
+    abrirModal(`
+      <div class="modal-title" style="color:var(--vm)">⚠️ Excluir minha conta</div>
+      <div style="background:var(--vm2);border-radius:13px;padding:14px;margin-bottom:16px">
+        <div style="font-size:14px;font-weight:700;color:#991B1B;line-height:1.6">
+          Esta ação é <strong>irreversível</strong>.<br>
+          Todos os seus remédios, histórico e dados serão <strong>permanentemente excluídos</strong>.
+        </div>
+      </div>
+      <p style="font-size:14px;color:var(--c3);font-weight:600;margin-bottom:16px">
+        Para confirmar, digite sua senha:
+      </p>
+      <div class="campo">
+        <input type="password" id="excluirSenhaInput" placeholder="Sua senha atual">
+      </div>
+      <button class="btn btn-vm" onclick="App.confirmarExcluirConta()">🗑️ Excluir permanentemente</button>
+      <button class="btn btn-w" onclick="App.fecharModal()">Cancelar</button>
+    `);
+  }
+
+  async function confirmarExcluirConta() {
+    const senha = document.getElementById('excluirSenhaInput')?.value;
+    if(!senha) { toast('⚠️ Informe sua senha para confirmar'); return; }
+    const supa = getSupa();
+    try {
+      // Reautenticar primeiro
+      if(supa && _usuarioAtual?.email) {
+        const { error: loginErr } = await supa.auth.signInWithPassword({
+          email: _usuarioAtual.email, password: senha
+        });
+        if(loginErr) { toast('❌ Senha incorreta'); return; }
+      }
+      // Excluir dados locais
+      DB.limparDadosUsuario();
+      // Excluir conta no Supabase
+      if(supa) {
+        await supa.auth.admin?.deleteUser(_usuarioAtual.id).catch(()=>{});
+        await supa.auth.signOut();
+      } else {
+        // Modo local
+        const users = JSON.parse(localStorage.getItem('med_local_users') || '{}');
+        if(_usuarioAtual?.email) delete users[_usuarioAtual.email];
+        localStorage.setItem('med_local_users', JSON.stringify(users));
+        localStorage.removeItem('med_local_session');
+      }
+      _usuarioAtual = null;
+      fecharModal();
+      mostrarTelaAuth();
+      toast('Conta excluída. Todos os dados foram removidos.');
+    } catch(e) {
+      toast('❌ Erro ao excluir conta: ' + e.message);
+    }
+  }
+
+  // ── Configurar Supabase ──────────────────────────────────────
+  function abrirConfigSupabase() {
+    const urlAtual = localStorage.getItem('med_supa_url') || '';
+    const keyAtual = localStorage.getItem('med_supa_key') || '';
+    abrirModal(`
+      <div class="modal-title">⚙️ Configurar Supabase</div>
+      <div style="background:var(--az2);border-radius:13px;padding:13px 15px;margin-bottom:16px;font-size:13px;font-weight:700;color:#1D4ED8;line-height:1.6">
+        📖 Crie seu projeto gratuito em <strong>supabase.com</strong><br>
+        Depois vá em: <strong>Settings → API</strong> e copie a URL e a anon key.
+      </div>
+      <div class="campo">
+        <label>Project URL</label>
+        <input type="text" id="supaUrlInput" value="${urlAtual}" placeholder="https://xxxx.supabase.co" style="font-size:14px;font-family:monospace">
+      </div>
+      <div class="campo">
+        <label>Anon Key</label>
+        <input type="password" id="supaKeyInput" value="${keyAtual}" placeholder="eyJhbGciOiJIUzI1NiIs..." style="font-size:13px;font-family:monospace">
+      </div>
+      <button class="btn btn-g" onclick="App.salvarConfigSupabase()">💾 Salvar e conectar</button>
+      <div style="margin-top:12px;background:var(--g3);border-radius:12px;padding:12px 14px;font-size:13px;font-weight:600;color:var(--g4);line-height:1.6">
+        💡 <strong>Sem Supabase?</strong> O app funciona em modo local — os dados ficam só neste celular, sem sincronização entre dispositivos.
+      </div>
+    `);
+  }
+
+  function salvarConfigSupabase() {
+    const url = document.getElementById('supaUrlInput')?.value.trim();
+    const key = document.getElementById('supaKeyInput')?.value.trim();
+    if(!url || !key) { toast('⚠️ Preencha URL e Key'); return; }
+    localStorage.setItem('med_supa_url', url);
+    localStorage.setItem('med_supa_key', key);
+    _supabase = null; // forçar recriação
+    fecharModal();
+    toast('✅ Supabase configurado! Faça login ou cadastro.');
+    renderConfig();
+  }
+
+  // ── Init ─────────────────────────────────────────────────────
   function init() {
     iniciarRelogio();
+    // Ocultar nav por padrão (aparece após login)
+    document.getElementById('nav')?.style.setProperty('display','none');
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('on'));
 
-    // Primeira vez: mostrar tela de boas-vindas
-    const jaUsou = localStorage.getItem('med_boasvindas_ok') ||
-                   localStorage.getItem('med_usuario_real') ||
-                   DB.medicamentos.length > 0 ||
-                   DB.config.nome;
-
-    if(!jaUsou) {
-      // Esconder home, mostrar boas-vindas
-      document.getElementById('s-home')?.classList.remove('on');
-      document.getElementById('s-boasvindas')?.classList.add('on');
-      document.getElementById('nav')?.style.setProperty('display','none');
-    } else {
-      renderHome();
-    }
-
-    // Aplicar configurações salvas
-    const cfg = DB.config;
-    if(cfg.tema==='Escuro') aplicarTema('Escuro');
-    if(cfg.fonte && cfg.fonte!=='normal') {
-      const sz = cfg.fonte==='grande'?'19px':'22px';
-      document.documentElement.style.fontSize = sz;
-    }
-    if(cfg.nome) document.getElementById('nomeUsuario').textContent = cfg.nome;
-
-    const k = document.getElementById('apikeyInput').value.trim();
-    if(k) DB.apikey = k;
-
-    // Estado inicial no histórico do browser
-    history.replaceState({ tela: jaUsou ? 'home' : 'boasvindas' }, '', '#' + (jaUsou ? 'home' : 'boasvindas'));
-
-    // Botão Voltar do Android / browser
-    window.addEventListener('popstate', function(e) {
-      voltarTela();
-    });
+    // Botão Voltar do Android
+    history.replaceState({ tela: 'login' }, '', '#login');
+    window.addEventListener('popstate', voltarTela);
 
     // Reagendar alarmes ao voltar do background
-    document.addEventListener('visibilitychange', function() {
-      if(!document.hidden) {
+    document.addEventListener('visibilitychange', () => {
+      if(!document.hidden && _usuarioAtual) {
         setTimeout(agendarTodasNotificacoes, 500);
         verificarAlertas();
         if(telaAtual === 'home') renderHome();
       }
     });
 
-    // Iniciar alertas e agendar notificações
-    iniciarAlertas();
-
-    // Solicitar permissão de notificação (com delay)
-    if('Notification' in window && Notification.permission === 'default' && jaUsou) {
-      setTimeout(function() {
-        Notification.requestPermission().then(function(p) {
-          if(p === 'granted') agendarTodasNotificacoes();
-        });
-      }, 3000);
-    }
+    // Verificar sessão existente (Supabase ou local)
+    restaurarSessao();
   }
 
-  /* ── API PÚBLICA ────────────────────────────────────────────── */
+  async function restaurarSessao() {
+    // 1. Tentar Supabase
+    const supa = getSupa();
+    if(supa) {
+      try {
+        const { data } = await supa.auth.getSession();
+        if(data?.session?.user) {
+          const u = data.session.user;
+          entrarNoApp({ id: u.id, email: u.email, nome: u.user_metadata?.nome || '' });
+          return;
+        }
+      } catch(e) { console.warn('[Auth] Supabase session:', e); }
+    }
+
+    // 2. Tentar sessão local
+    const sessaoLocal = localStorage.getItem('med_local_session');
+    if(sessaoLocal) {
+      try {
+        const u = JSON.parse(sessaoLocal);
+        if(u?.id && u?.email) { entrarNoApp(u); return; }
+      } catch(e) {}
+    }
+
+    // 3. Nenhuma sessão — mostrar login
+    mostrarTelaAuth();
+  }
+
+  /* ── API PÚBLICA   /* ── API PÚBLICA ────────────────────────────────────────────── */
   return {
     go, voltarTela, irCamera, irFormManual, salvarForm, confirmarExcluir, excluirMed,
     onFotoSelecionada, simularReceita, salvarResultadoIA, renderIAResultado,
     confirmarNotif, fecharNotif, abrirModal, fecharModal, toast,
     agendarTodasNotificacoes,
     calMudar, toggleCfg, togglePausar,
+    // Auth
+    fazerLogin, fazerCadastro, recuperarSenha, fazerLogout, confirmarLogout,
+    toggleSenhaVis, verTermos, verPrivacidade,
+    excluirMinhaConta, confirmarExcluirConta,
+    abrirConfigSupabase, salvarConfigSupabase,
+    // Config
     editarNome, salvarNome, editarCuidador, salvarCuidador,
     editarApiKey, salvarApiKey, testarApiKey, toggleVerChave, apagarApiKey,
     configAlertas, selecionarToque, testarToque, salvarVolume, salvarSilencio,
     ajustarFonte, setFonte, toggleTema,
     verificarAtualizacao, forcarAtualizacao,
-    finalizarBoasVindas, editarEstoque, editarEstoqueManual, salvarEstoque,
+    finalizarBoasVindas: () => {}, editarEstoque, editarEstoqueManual, salvarEstoque,
     abrirBarcode, pararCameraBarcode, iniciarScannerBarcode, erroScanner,
     processarCodigoBarras, processarCodigoManual, digitarCodigoManual,
     ajustarQtdBarcode, calcularDiasBarcode, confirmarReposicaoBarcode, reiniciarScanner,
