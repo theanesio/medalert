@@ -1008,6 +1008,100 @@ input[type=range]::-webkit-slider-thumb{
   </div>
 
   <!-- ══════════════════════════════════════════
+       TELA AGENDA (consultas e exames)
+  ══════════════════════════════════════════ -->
+  <div class="screen" id="s-agenda">
+    <div class="tb">
+      <h1>📅 Agenda</h1>
+      <p>Consultas e exames</p>
+    </div>
+    <div class="ct anim" id="agendaContent">
+      <!-- preenchido pelo JS -->
+    </div>
+  </div>
+
+  <!-- TELA FORMULÁRIO AGENDA -->
+  <div class="screen" id="s-agenda-form">
+    <div class="tb">
+      <button class="tb-back" id="agendaFormBack">← Voltar</button>
+      <h1 id="agendaFormTitle">Nova Consulta</h1>
+      <p id="agendaFormSub">Preencha os dados</p>
+    </div>
+    <div class="ct">
+      <div class="card cp">
+
+        <div class="campo">
+          <label>Tipo *</label>
+          <select id="agTipo">
+            <option value="consulta">🩺 Consulta médica</option>
+            <option value="exame">🔬 Exame</option>
+            <option value="retorno">🔄 Retorno</option>
+            <option value="vacina">💉 Vacinação</option>
+            <option value="cirurgia">🏥 Cirurgia / Procedimento</option>
+            <option value="outro">📌 Outro</option>
+          </select>
+        </div>
+
+        <div class="campo">
+          <label>Título / Especialidade *</label>
+          <input type="text" id="agTitulo" placeholder="Ex: Cardiologista, Hemograma, Raio-X...">
+        </div>
+
+        <div class="campo">
+          <label>Médico / Local</label>
+          <input type="text" id="agMedico" placeholder="Ex: Dr. João Silva, UBS Centro...">
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="campo" style="margin-bottom:0">
+            <label>Data *</label>
+            <input type="date" id="agData">
+          </div>
+          <div class="campo" style="margin-bottom:0">
+            <label>Horário</label>
+            <input type="time" id="agHora" value="08:00">
+          </div>
+        </div>
+
+        <div class="campo" style="margin-top:14px">
+          <label>Local / Endereço</label>
+          <input type="text" id="agLocal" placeholder="Ex: Rua das Flores, 123 — Sala 5">
+        </div>
+
+        <div class="campo">
+          <label>Observações</label>
+          <textarea id="agObs" placeholder="Ex: Jejum de 8h, levar exames anteriores..."
+            style="width:100%;min-height:80px;background:var(--c7);border:2px solid var(--c6);
+              border-radius:13px;padding:13px;font-size:15px;font-family:var(--f);
+              color:var(--c1);outline:none;resize:none;font-weight:600"></textarea>
+        </div>
+
+        <div class="campo" style="margin-bottom:0">
+          <label>⏰ Alertas antecipados</label>
+          <div style="display:flex;flex-direction:column;gap:8px;margin-top:6px">
+            <label style="display:flex;align-items:center;gap:10px;font-size:14px;font-weight:700;cursor:pointer">
+              <input type="checkbox" id="ag1dia" checked style="width:20px;height:20px"> 1 dia antes
+            </label>
+            <label style="display:flex;align-items:center;gap:10px;font-size:14px;font-weight:700;cursor:pointer">
+              <input type="checkbox" id="ag2h" checked style="width:20px;height:20px"> 2 horas antes
+            </label>
+            <label style="display:flex;align-items:center;gap:10px;font-size:14px;font-weight:700;cursor:pointer">
+              <input type="checkbox" id="ag30min" style="width:20px;height:20px"> 30 minutos antes
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <button class="btn btn-g" style="font-size:18px;padding:19px" onclick="App.salvarAgenda()">
+        💾 Salvar
+      </button>
+      <div id="agendaFormErro" style="display:none;background:var(--vm2);border-radius:13px;
+        padding:12px 14px;margin-top:10px;font-size:14px;font-weight:700;color:#991B1B;text-align:center">
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
        TELA HISTÓRICO
   ══════════════════════════════════════════ -->
   <div class="screen" id="s-historico">
@@ -1089,8 +1183,8 @@ input[type=range]::-webkit-slider-thumb{
       <button class="nb-add" onclick="App.go('adicionar')">+</button>
       <span style="font-size:10px;font-weight:800;color:var(--c5)">Adicionar</span>
     </div>
-    <button class="nb" id="nb-historico" onclick="App.go('historico')">
-      <span class="nb-ic">📋</span><span class="nb-lb">Histórico</span>
+    <button class="nb" id="nb-agenda" onclick="App.go('agenda')">
+      <span class="nb-ic">📅</span><span class="nb-lb">Agenda</span>
     </button>
     <button class="nb" id="nb-config" onclick="App.go('config')">
       <span class="nb-ic">⚙️</span><span class="nb-lb">Config.</span>
@@ -1110,7 +1204,7 @@ input[type=range]::-webkit-slider-thumb{
 ═══════════════════════════════════════════════════════════════════ */
 
 /* ── CONSTANTES ──────────────────────────────────────────────────── */
-const APP_VERSION  = '1.9.1';
+const APP_VERSION  = '2.0.0';
 
 /* ══════════════════════════════════════════════════════════════
    CONFIGURAÇÃO DO SUPABASE — PREENCHIDA PELO DONO DO APP
@@ -1182,6 +1276,8 @@ const DB = {
   set config(v)      { localStorage.setItem(this._k('config'), JSON.stringify(v)) },
   get apikey()       { return localStorage.getItem(this._k('apikey'))||'' },
   set apikey(v)      { localStorage.setItem(this._k('apikey'), v) },
+  get agenda()       { try { return JSON.parse(localStorage.getItem(this._k('agenda'))||'[]') } catch{ return [] } },
+  set agenda(v)      { localStorage.setItem(this._k('agenda'), JSON.stringify(v)) },
 
   // Limpar todos os dados do usuário atual
   limparDadosUsuario() {
@@ -1313,6 +1409,7 @@ const App = (() => {
       'home':      renderHome,
       'remedios':  renderRemedios,
       'historico': renderHistorico,
+      'agenda':    renderAgenda,
       'config':    renderConfig,
     };
     if(renders[tela]) renders[tela]();
@@ -1326,7 +1423,7 @@ const App = (() => {
     const telasAuth = ['login','cadastro','recuperar'];
     const nav = document.getElementById('nav');
     if(nav) nav.style.display = telasAuth.includes(para) ? 'none' : '';
-    ['home','remedios','historico','config'].forEach(t=>{
+    ['home','remedios','agenda','config'].forEach(t=>{
       document.getElementById('nb-'+t)?.classList.toggle('on', t===para);
     });
     telaAtual = para;
@@ -1842,6 +1939,34 @@ const App = (() => {
       tomadosList.forEach(e => el.appendChild(cardMed(e)));
     }
 
+    // Próxima consulta/exame
+    const hoje2 = hojeStr();
+    const proximaConsulta = DB.agenda
+      .filter(i => !i.concluido && i.data >= hoje2)
+      .sort((a,b) => a.data < b.data ? -1 : 1)[0];
+    if(proximaConsulta) {
+      const dataObj2 = new Date(proximaConsulta.data + 'T12:00:00');
+      const diffDias2 = Math.round((dataObj2 - new Date(hoje2+'T12:00:00')) / 86400000);
+      const agTipo2 = AGENDA_TIPOS[proximaConsulta.tipo] || AGENDA_TIPOS.outro;
+      const dataFmt2 = dataObj2.toLocaleDateString('pt-BR',{day:'2-digit',month:'short'});
+      const urgente = diffDias2 <= 1;
+      el.insertAdjacentHTML('beforeend', `
+        <div onclick="App.go('agenda')"
+          style="background:${urgente?'var(--am2)':'var(--az2)'};border-radius:14px;
+            padding:13px 15px;margin-bottom:10px;cursor:pointer;
+            display:flex;align-items:center;gap:12px;border-left:4px solid ${urgente?'var(--am)':'var(--az)'}">
+          <span style="font-size:26px">${agTipo2.emoji}</span>
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:800;color:${urgente?'var(--am3)':'#1D4ED8'}">
+              ${diffDias2===0?'HOJE':'AMANHÃ' === diffDias2===1?'AMANHÃ':`Em ${diffDias2} dias`} · ${proximaConsulta.tipo==='exame'?'Exame':'Consulta'}
+            </div>
+            <div style="font-size:15px;font-weight:900;color:var(--c1);margin-top:1px">${proximaConsulta.titulo}</div>
+            <div style="font-size:13px;color:var(--c3);font-weight:600">${dataFmt2}${proximaConsulta.hora?' · '+proximaConsulta.hora:''}</div>
+          </div>
+          <span style="color:var(--c4);font-size:18px">›</span>
+        </div>`);
+    }
+
     // Mensagem quando tudo foi tomado no dia
     if(meds.length > 0 && pendentesList.length === 0 && atrasadosList.length === 0 && tomadosList.length > 0) {
       el.insertAdjacentHTML('beforeend', `
@@ -2003,6 +2128,312 @@ const App = (() => {
   }
 
   /* ── HISTÓRICO ─────────────────────────────────────────────── */
+  /* ═══════════════════════════════════════════════════════════
+     MÓDULO AGENDA — Consultas e Exames
+  ═══════════════════════════════════════════════════════════ */
+
+  const AGENDA_TIPOS = {
+    consulta: { emoji: '🩺', label: 'Consulta',   cor: '#EFF6FF', txt: '#1D4ED8' },
+    exame:    { emoji: '🔬', label: 'Exame',       cor: '#F5F3FF', txt: '#5B21B6' },
+    retorno:  { emoji: '🔄', label: 'Retorno',     cor: '#E8F5EE', txt: '#0F5235' },
+    vacina:   { emoji: '💉', label: 'Vacinação',   cor: '#FEF3C7', txt: '#92400E' },
+    cirurgia: { emoji: '🏥', label: 'Procedimento',cor: '#FFF0F0', txt: '#991B1B' },
+    outro:    { emoji: '📌', label: 'Outro',        cor: '#F0FDF4', txt: '#166534' },
+  };
+
+  let editandoAgendaId = null;
+
+  function renderAgenda() {
+    const el  = document.getElementById('agendaContent');
+    if(!el) return;
+    const hoje = hojeStr();
+    const itens = DB.agenda
+      .sort((a,b) => (a.data+a.hora) < (b.data+b.hora) ? -1 : 1);
+
+    const proximos  = itens.filter(i => i.data >= hoje && !i.concluido);
+    const passados  = itens.filter(i => i.data <  hoje || i.concluido);
+
+    el.innerHTML = '';
+
+    // Botão novo
+    el.insertAdjacentHTML('beforeend', `
+      <button class="btn btn-g" style="margin-bottom:16px;font-size:16px;padding:16px"
+        onclick="App.novaAgenda()">
+        ➕ Agendar consulta ou exame
+      </button>
+    `);
+
+    if(itens.length === 0) {
+      el.insertAdjacentHTML('beforeend', `
+        <div class="empty">
+          <div class="empty-ic">📅</div>
+          <div class="empty-h">Nenhum agendamento</div>
+          <div class="empty-p">Adicione suas consultas e exames para receber lembretes</div>
+        </div>
+      `);
+      return;
+    }
+
+    // Proximos
+    if(proximos.length) {
+      el.insertAdjacentHTML('beforeend','<div class="st">⏰ Próximos</div>');
+      proximos.forEach(item => el.appendChild(cardAgenda(item)));
+    }
+
+    // Passados
+    if(passados.length) {
+      el.insertAdjacentHTML('beforeend','<div class="st" style="margin-top:8px">✅ Realizados / Passados</div>');
+      passados.slice(0,5).forEach(item => el.appendChild(cardAgenda(item)));
+      if(passados.length > 5) {
+        el.insertAdjacentHTML('beforeend',`
+          <div style="text-align:center;font-size:14px;color:var(--c4);font-weight:700;padding:8px">
+            + ${passados.length-5} registro(s) anteriores
+          </div>`);
+      }
+    }
+
+    el.insertAdjacentHTML('beforeend','<div style="height:16px"></div>');
+  }
+
+  function cardAgenda(item) {
+    const tipo    = AGENDA_TIPOS[item.tipo] || AGENDA_TIPOS.outro;
+    const hoje    = hojeStr();
+    const dataObj = new Date(item.data + 'T12:00:00');
+    const dataFmt = dataObj.toLocaleDateString('pt-BR', { day:'2-digit', month:'long', year:'numeric', weekday:'long' });
+    const diffDias = Math.round((dataObj - new Date(hoje+'T12:00:00')) / 86400000);
+
+    let badge = '';
+    let bordaCor = tipo.cor;
+    if(!item.concluido) {
+      if(diffDias === 0)      { badge = '<span class="badge" style="background:#FEFCE8;color:#92400E">📅 Hoje!</span>'; bordaCor='#FEF3C7'; }
+      else if(diffDias === 1) { badge = '<span class="badge" style="background:#EFF6FF;color:#1D4ED8">📅 Amanhã</span>'; }
+      else if(diffDias <= 7)  { badge = `<span class="badge baz">📅 Em ${diffDias} dias</span>`; }
+      else if(diffDias < 0)   { badge = '<span class="badge bam">⚠️ Passou</span>'; }
+    } else {
+      badge = '<span class="badge bv">✅ Realizado</span>';
+    }
+
+    const div = document.createElement('div');
+    div.className = 'card cp';
+    div.style.cssText = `margin-bottom:10px;border-left:5px solid ${bordaCor};cursor:pointer;`;
+    div.innerHTML = `
+      <div style="display:flex;align-items:flex-start;gap:12px">
+        <div style="width:48px;height:48px;border-radius:14px;background:${tipo.cor};
+          display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0">
+          ${tipo.emoji}
+        </div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:16px;font-weight:900;color:var(--c1);margin-bottom:2px">${item.titulo}</div>
+          <div style="font-size:13px;color:var(--c3);font-weight:700">${tipo.label}${item.medico ? ' · ' + item.medico : ''}</div>
+          <div style="font-size:14px;font-weight:800;color:var(--c2);margin-top:6px">
+            📅 ${dataFmt}${item.hora ? ' · ' + item.hora : ''}
+          </div>
+          ${item.local ? `<div style="font-size:13px;color:var(--c4);font-weight:600;margin-top:3px">📍 ${item.local}</div>` : ''}
+          ${item.obs   ? `<div style="font-size:13px;color:var(--c3);font-weight:600;margin-top:4px;line-height:1.4">📝 ${item.obs}</div>` : ''}
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
+            ${badge}
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--c6)">
+        ${!item.concluido && new Date(item.data) <= new Date() ? `
+          <button onclick="event.stopPropagation();App.marcarAgendaRealizado('${item.id}')"
+            style="flex:1;background:var(--g3);color:var(--g4);border:none;border-radius:11px;
+              padding:10px;font-size:13px;font-weight:800;cursor:pointer;font-family:var(--f)">
+            ✅ Marcar realizado
+          </button>` : ''}
+        <button onclick="event.stopPropagation();App.editarAgenda('${item.id}')"
+          style="flex:1;background:var(--c7);color:var(--c2);border:none;border-radius:11px;
+            padding:10px;font-size:13px;font-weight:800;cursor:pointer;font-family:var(--f)">
+          ✏️ Editar
+        </button>
+        <button onclick="event.stopPropagation();App.excluirAgenda('${item.id}')"
+          style="background:var(--vm2);color:var(--vm);border:none;border-radius:11px;
+            padding:10px 14px;font-size:13px;font-weight:800;cursor:pointer;font-family:var(--f)">
+          🗑️
+        </button>
+      </div>
+    `;
+    return div;
+  }
+
+  function novaAgenda() {
+    editandoAgendaId = null;
+    document.getElementById('agendaFormTitle').textContent = 'Nova Consulta / Exame';
+    document.getElementById('agendaFormSub').textContent   = 'Preencha os dados';
+    document.getElementById('agendaFormBack').onclick = () => go('agenda');
+    // Limpar campos
+    document.getElementById('agTipo').value    = 'consulta';
+    document.getElementById('agTitulo').value  = '';
+    document.getElementById('agMedico').value  = '';
+    document.getElementById('agData').value    = '';
+    document.getElementById('agHora').value    = '08:00';
+    document.getElementById('agLocal').value   = '';
+    document.getElementById('agObs').value     = '';
+    document.getElementById('ag1dia').checked  = true;
+    document.getElementById('ag2h').checked    = true;
+    document.getElementById('ag30min').checked = false;
+    document.getElementById('agendaFormErro').style.display = 'none';
+    go('agenda-form');
+  }
+
+  function editarAgenda(id) {
+    const item = DB.agenda.find(i => i.id === id);
+    if(!item) return;
+    editandoAgendaId = id;
+    document.getElementById('agendaFormTitle').textContent = 'Editar Agendamento';
+    document.getElementById('agendaFormSub').textContent   = item.titulo;
+    document.getElementById('agendaFormBack').onclick = () => go('agenda');
+    document.getElementById('agTipo').value    = item.tipo   || 'consulta';
+    document.getElementById('agTitulo').value  = item.titulo || '';
+    document.getElementById('agMedico').value  = item.medico || '';
+    document.getElementById('agData').value    = item.data   || '';
+    document.getElementById('agHora').value    = item.hora   || '08:00';
+    document.getElementById('agLocal').value   = item.local  || '';
+    document.getElementById('agObs').value     = item.obs    || '';
+    document.getElementById('ag1dia').checked  = item.alertas?.includes('1dia')  ?? true;
+    document.getElementById('ag2h').checked    = item.alertas?.includes('2h')    ?? true;
+    document.getElementById('ag30min').checked = item.alertas?.includes('30min') ?? false;
+    document.getElementById('agendaFormErro').style.display = 'none';
+    go('agenda-form');
+  }
+
+  function salvarAgenda() {
+    const titulo = document.getElementById('agTitulo')?.value.trim();
+    const data   = document.getElementById('agData')?.value;
+    const erro   = document.getElementById('agendaFormErro');
+
+    if(!titulo) { mostrarErroAgenda(erro, 'Informe o título ou especialidade'); return; }
+    if(!data)   { mostrarErroAgenda(erro, 'Informe a data da consulta/exame'); return; }
+
+    const alertas = [];
+    if(document.getElementById('ag1dia')?.checked)  alertas.push('1dia');
+    if(document.getElementById('ag2h')?.checked)    alertas.push('2h');
+    if(document.getElementById('ag30min')?.checked) alertas.push('30min');
+
+    const item = {
+      id:        editandoAgendaId || uid(),
+      tipo:      document.getElementById('agTipo')?.value   || 'consulta',
+      titulo,
+      medico:    document.getElementById('agMedico')?.value.trim() || '',
+      data,
+      hora:      document.getElementById('agHora')?.value   || '',
+      local:     document.getElementById('agLocal')?.value.trim() || '',
+      obs:       document.getElementById('agObs')?.value.trim()   || '',
+      alertas,
+      concluido: false,
+      criado:    editandoAgendaId ? undefined : Date.now(),
+    };
+
+    // Remover campos undefined
+    Object.keys(item).forEach(k => item[k] === undefined && delete item[k]);
+
+    const lista = DB.agenda;
+    if(editandoAgendaId) {
+      const idx = lista.findIndex(i => i.id === editandoAgendaId);
+      if(idx >= 0) lista[idx] = { ...lista[idx], ...item };
+    } else {
+      lista.push(item);
+    }
+    DB.agenda = lista;
+
+    // Agendar alertas para este item
+    agendarAlertasConsulta(item);
+
+    go('agenda');
+    renderAgenda();
+    toast(editandoAgendaId ? '✅ Agendamento atualizado!' : '✅ Agendamento salvo!');
+    editandoAgendaId = null;
+  }
+
+  function mostrarErroAgenda(el, msg) {
+    if(!el) { toast('⚠️ ' + msg); return; }
+    el.textContent = '⚠️ ' + msg;
+    el.style.display = 'block';
+  }
+
+  function excluirAgenda(id) {
+    abrirModal(`
+      <div class="modal-title">🗑️ Excluir agendamento?</div>
+      <p style="font-size:15px;color:var(--c3);font-weight:600;margin-bottom:20px">
+        Esta ação não pode ser desfeita.
+      </p>
+      <button class="btn btn-vm" onclick="App.confirmarExcluirAgenda('${id}')">🗑️ Excluir</button>
+      <button class="btn btn-w" onclick="App.fecharModal()">Cancelar</button>
+    `);
+  }
+
+  function confirmarExcluirAgenda(id) {
+    DB.agenda = DB.agenda.filter(i => i.id !== id);
+    fecharModal();
+    renderAgenda();
+    toast('✅ Agendamento removido');
+  }
+
+  function marcarAgendaRealizado(id) {
+    const lista = DB.agenda;
+    const item  = lista.find(i => i.id === id);
+    if(!item) return;
+    item.concluido = true;
+    item.realizadoEm = hojeStr();
+    DB.agenda = lista;
+    renderAgenda();
+    toast('✅ Marcado como realizado!');
+  }
+
+  /* ── ALERTAS DE CONSULTA ────────────────────────────────── */
+  function agendarAlertasConsulta(item) {
+    if(!item.data || !item.alertas?.length) return;
+    const horaConsulta = item.hora || '08:00';
+    const [hh, mm] = horaConsulta.split(':').map(Number);
+
+    const dataConsulta = new Date(item.data + 'T' + horaConsulta + ':00');
+    const agora = new Date();
+
+    item.alertas.forEach(tipo => {
+      let msAntes = 0;
+      if(tipo === '1dia')  msAntes = 24 * 60 * 60 * 1000;
+      if(tipo === '2h')    msAntes =  2 * 60 * 60 * 1000;
+      if(tipo === '30min') msAntes = 30 * 60 * 1000;
+
+      const momentoAlerta = new Date(dataConsulta.getTime() - msAntes);
+      const diff = momentoAlerta.getTime() - agora.getTime();
+
+      if(diff <= 0) return; // já passou
+
+      const tipoLabel = { '1dia':'1 dia', '2h':'2 horas', '30min':'30 minutos' }[tipo];
+      const agTipo    = AGENDA_TIPOS[item.tipo] || AGENDA_TIPOS.outro;
+
+      setTimeout(() => {
+        // Notificação nativa
+        if('serviceWorker' in navigator && Notification.permission === 'granted') {
+          navigator.serviceWorker.ready.then(reg => {
+            reg.showNotification(`${agTipo.emoji} Lembrete: ${item.titulo}`, {
+              body: `Sua ${item.tipo === 'exame' ? 'exame' : 'consulta'} é em ${tipoLabel}.\n${item.hora ? 'Horário: ' + item.hora : ''}${item.local ? '\nLocal: ' + item.local : ''}`,
+              icon:             'icons/icon-192.png',
+              badge:            'icons/icon-72.png',
+              tag:              `agenda-${item.id}-${tipo}`,
+              requireInteraction: true,
+              vibrate:          [300, 100, 300],
+              data:             { tipo: 'agenda', id: item.id }
+            });
+          });
+        }
+        // Toast se app estiver aberto
+        if(!document.hidden) {
+          toast(`${agTipo.emoji} Lembrete: ${item.titulo} em ${tipoLabel}!`);
+        }
+      }, diff);
+    });
+  }
+
+  function agendarTodosAlertasConsultas() {
+    const hoje = hojeStr();
+    DB.agenda
+      .filter(i => !i.concluido && i.data >= hoje)
+      .forEach(item => agendarAlertasConsulta(item));
+  }
+
   function renderHistorico() {
     const el = document.getElementById('histContent');
     el.innerHTML = '';
@@ -4172,6 +4603,7 @@ Regras:
       // Restaurar dados no DB do usuário atual
       DB.medicamentos = meds;
       DB.registros    = regs;
+      if(Array.isArray(dados.agenda)) DB.agenda = dados.agenda;
 
       if(cfg && Object.keys(cfg).length) {
         const cfgAtual = DB.config;
@@ -4269,7 +4701,7 @@ Regras:
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('on'));
     document.getElementById('nav')?.style.setProperty('display','none');
     // Limpar highlights do navbar
-    ['home','remedios','historico','config'].forEach(t => {
+    ['home','remedios','agenda','config'].forEach(t => {
       document.getElementById('nb-'+t)?.classList.remove('on');
     });
     // Mostrar login
@@ -4309,13 +4741,14 @@ Regras:
     history.replaceState({ tela: 'home' }, '', '#home');
 
     // Atualizar navbar
-    ['home','remedios','historico','config'].forEach(t => {
+    ['home','remedios','agenda','config'].forEach(t => {
       document.getElementById('nb-'+t)?.classList.toggle('on', t === 'home');
     });
 
     // Renderizar home
     renderHome();
     iniciarAlertas();
+    agendarTodosAlertasConsultas();
 
     // Sincronizar com nuvem se Supabase configurado
     const supa = getSupa();
@@ -4777,7 +5210,8 @@ Regras:
 
     const dados = {
       medicamentos: DB.medicamentos,
-      registros:    DB.registros.slice(-500), // últimos 500 registros
+      registros:    DB.registros.slice(-500),
+      agenda:       DB.agenda, // últimos 500 registros
       config:       DB.config,
       sincronizado: new Date().toISOString(),
     };
@@ -4967,8 +5401,10 @@ create policy "Usuário acessa só seus dados"
     processarCodigoBarras, processarCodigoManual, digitarCodigoManual,
     ajustarQtdBarcode, calcularDiasBarcode, confirmarReposicaoBarcode, reiniciarScanner,
     fazerBackup, abrirRestaurarBackup, processarBackup, confirmarRestauracao,
+    novaAgenda, editarAgenda, salvarAgenda, excluirAgenda, confirmarExcluirAgenda,
+    marcarAgendaRealizado, agendarAlertasConsulta, agendarTodosAlertasConsultas,
     confirmarLimpar, limparTudo, exportarPDF,
-    renderDetalhe, renderConfig, onFreqChange, adicionarHora, removerHora,
+    renderDetalhe, renderAgenda, renderConfig, onFreqChange, adicionarHora, removerHora,
     selecionarCor, selecionarEmoji, voltarDoForm,
     mostrarNotifById: (id, h) => {
       const m = DB.medicamentos.find(m=>m.id===id);

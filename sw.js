@@ -1,7 +1,7 @@
 /* MedAlert — Service Worker v16
    FORÇAR ATUALIZAÇÃO COMPLETA — limpa todos os caches anteriores */
-const CACHE   = 'medalert-v23';
-const VERSION = '1.9.1';
+const CACHE   = 'medalert-v24';
+const VERSION = '2.0.0';
 const FILES   = ['./', './index.html', './manifest.json',
                  './icons/icon-192.png', './icons/icon-512.png'];
 
