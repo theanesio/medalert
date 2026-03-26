@@ -1095,7 +1095,7 @@ input[type=range]::-webkit-slider-thumb{
 ═══════════════════════════════════════════════════════════════════ */
 
 /* ── CONSTANTES ──────────────────────────────────────────────────── */
-const APP_VERSION  = '1.8.1';
+const APP_VERSION  = '1.8.2';
 
 /* ══════════════════════════════════════════════════════════════
    CONFIGURAÇÃO DO SUPABASE — PREENCHIDA PELO DONO DO APP
@@ -1113,8 +1113,8 @@ const APP_VERSION  = '1.8.1';
    ► Os usuários finais NÃO precisam saber do Supabase.
      Eles só fazem o cadastro simples dentro do MedAlert.
    ══════════════════════════════════════════════════════════════ */
-const SUPA_URL = https://wlcivpkxbpbxkvwqbqct.supabase.co;   // Ex: https://xyzxyz.supabase.co
-const SUPA_KEY = sb_publishable_C5fROFaeHO75U_gI-9mfQQ_fkRJv_I3;      // Ex: eyJhbGci...
+const SUPA_URL = 'https://wlcivpkxbpbxkvwqbqct.supabase.co';
+const SUPA_KEY = 'sb_publishable_C5fROFaeHO75U_gI-9mfQQ_fkRJv_I3';
 
 /* ── CLIENTE SUPABASE (inicializado automaticamente) ─────────── */
 let _supabase = null;
@@ -1124,7 +1124,7 @@ function getSupa() {
   const url = SUPA_URL;
   const key = SUPA_KEY;
   // Se não foram configuradas ainda, operar em modo local
-  if(!url || !key || url.includes('COLE_SUA') || !window.supabase) return null;
+  if(!url || !key || !window.supabase) return null;
   try {
     _supabase = window.supabase.createClient(url, key, {
       auth: {
