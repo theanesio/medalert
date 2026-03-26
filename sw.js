@@ -1,6 +1,6 @@
 /* MedAlert — Service Worker v7 */
-const CACHE   = 'medalert-v7';
-const VERSION = '1.4.0';
+const CACHE   = 'medalert-v8';
+const VERSION = '1.5.0';
 const FILES   = ['./', './index.html', './manifest.json', './icons/icon-192.png', './icons/icon-512.png'];
 
 self.addEventListener('install', e => {
