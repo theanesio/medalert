@@ -570,6 +570,51 @@ input[type=range]::-webkit-slider-thumb{
   width:100%;background:#fff;border:2px solid var(--am);border-radius:12px;
   padding:12px 14px;font-size:14px;font-family:var(--f);color:var(--c1);outline:none;
 }
+/* ─── LEITOR CÓDIGO DE BARRAS ───── */
+#barcodeVideo{
+  width:100%;border-radius:16px;background:#111;
+  aspect-ratio:4/3;object-fit:cover;display:block;
+}
+.barcode-overlay{
+  position:relative;border-radius:16px;overflow:hidden;margin-bottom:14px;
+}
+.barcode-frame{
+  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  pointer-events:none;
+}
+.barcode-guide{
+  width:80%;height:35%;border:3px solid var(--g);border-radius:8px;
+  box-shadow:0 0 0 1000px rgba(0,0,0,.45);
+  position:relative;
+}
+.barcode-guide::before,.barcode-guide::after{
+  content:'';position:absolute;width:24px;height:24px;border-color:var(--g);border-style:solid;
+}
+.barcode-guide::before{top:-3px;left:-3px;border-width:4px 0 0 4px;border-radius:4px 0 0 0}
+.barcode-guide::after{top:-3px;right:-3px;border-width:4px 4px 0 0;border-radius:0 4px 0 0}
+.barcode-scan-line{
+  position:absolute;left:10%;right:10%;height:2px;
+  background:linear-gradient(90deg,transparent,var(--g),transparent);
+  animation:scanLine 2s ease-in-out infinite;
+}
+@keyframes scanLine{
+  0%{top:10%} 50%{top:85%} 100%{top:10%}
+}
+.barcode-status{
+  position:absolute;bottom:12px;left:0;right:0;text-align:center;
+  font-size:13px;font-weight:800;color:#fff;
+  text-shadow:0 1px 4px rgba(0,0,0,.8);
+}
+.med-result-card{
+  background:var(--card);border-radius:var(--r);box-shadow:var(--sh);
+  padding:18px;margin-bottom:14px;border-left:5px solid var(--g);
+}
+.med-result-nome{font-size:18px;font-weight:900;color:var(--c1);margin-bottom:4px}
+.med-result-info{font-size:14px;color:var(--c3);font-weight:600;line-height:1.6}
+.med-result-qtd{
+  display:flex;align-items:center;gap:12px;margin-top:14px;
+  background:var(--c7);border-radius:12px;padding:12px 14px;
+}
 /* ─── BANNER INSTALAÇÃO ───────────────────────────────────── */
 #installBanner{
   position:absolute;bottom:0;left:0;right:0;
@@ -862,6 +907,20 @@ input[type=range]::-webkit-slider-thumb{
   </div>
 
   <!-- ══════════════════════════════════════════
+       TELA LEITOR CÓDIGO DE BARRAS
+  ══════════════════════════════════════════ -->
+  <div class="screen" id="s-barcode">
+    <div class="tb">
+      <button class="tb-back" id="barcodeBackBtn">← Voltar</button>
+      <h1>📦 Repor Estoque</h1>
+      <p>Aponte a câmera para o código de barras</p>
+    </div>
+    <div class="ct" id="barcodeCt">
+      <!-- Preenchido pelo JS -->
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
        TELA DETALHE REMÉDIO
   ══════════════════════════════════════════ -->
   <div class="screen" id="s-detalhe">
@@ -934,7 +993,7 @@ input[type=range]::-webkit-slider-thumb{
 ═══════════════════════════════════════════════════════════════════ */
 
 /* ── CONSTANTES ──────────────────────────────────────────────────── */
-const APP_VERSION  = '1.5.0';
+const APP_VERSION  = '1.6.0';
 const CORES = ['#E8F5EE','#EFF6FF','#FEF3C7','#F5F3FF','#FFF0F0','#F0FDF4','#FDF4FF','#FFF7ED'];
 const CORES_TEXT = ['#0F5235','#1D4ED8','#92400E','#5B21B6','#991B1B','#166534','#6B21A2','#9A3412'];
 const EMOJIS = ['💊','💉','🩺','🫀','🧠','👁️','🦷','🦴','🌡️','⭐','🍃','🔵'];
@@ -1090,6 +1149,8 @@ const App = (() => {
 
   function go(tela) {
     if(telaAtual === tela) return;
+    // Parar câmera se estava no scanner
+    if(telaAtual === 'barcode') pararCameraBarcode();
     _mostrarTela(telaAtual, tela);
     // Empurrar no historico do browser para interceptar botao Voltar
     history.pushState({ tela: tela }, '', '#' + tela);
@@ -1679,6 +1740,16 @@ const App = (() => {
       el.insertAdjacentHTML('beforeend', `<div class="st">⏸️ Pausados</div>`);
       inativos.forEach(m=>el.appendChild(renderItem(m)));
     }
+
+    // Botão de reposição por código de barras
+    el.insertAdjacentHTML('beforeend', `
+      <div style="margin-top:8px">
+        <button class="btn btn-g" onclick="App.abrirBarcode(null)" style="background:var(--az);font-size:16px;padding:16px">
+          📷 Escanear caixa para repor estoque
+        </button>
+      </div>
+      <div style="height:16px"></div>
+    `);
   }
 
   /* ── DETALHE REMÉDIO ────────────────────────────────────────── */
@@ -2523,7 +2594,455 @@ Regras:
     toast('Olá, ' + nome + '! Adicione seus remédios tocando no + abaixo.');
   }
 
+  /* ═══════════════════════════════════════════════════════════
+     LEITOR DE CÓDIGO DE BARRAS — Reposição de estoque
+     Usa ZXing-js via CDN (padrão indústria, suporta EAN-13/8,
+     Code128, QR, DataMatrix — formatos usados em caixas de remédios)
+  ═══════════════════════════════════════════════════════════ */
+
+  let _zxingReader   = null;  // instância do leitor ZXing
+  let _barcodeAtivo  = false; // câmera ligada
+  let _barcodemedId  = null;  // med vinculado (se veio do detalhe)
+  let _barcodeStream = null;  // stream da câmera para fechar corretamente
+
+  // Parar câmera ao sair da tela
+  function pararCameraBarcode() {
+    _barcodeAtivo = false;
+    if(_barcodeStream) {
+      _barcodeStream.getTracks().forEach(t => t.stop());
+      _barcodeStream = null;
+    }
+    if(_zxingReader) {
+      try { _zxingReader.reset(); } catch(e){}
+    }
+  }
+
+  function abrirBarcode(medId) {
+    _barcodemedId = medId || null;
+    pararCameraBarcode();
+
+    // Configurar botão voltar
+    const back = document.getElementById('barcodeBackBtn');
+    if(back) back.onclick = () => {
+      pararCameraBarcode();
+      if(_barcodemedId) go('detalhe');
+      else go('remedios');
+    };
+
+    // Renderizar conteúdo inicial
+    const ct = document.getElementById('barcodeCt');
+    ct.innerHTML = `
+      <div class="barcode-overlay">
+        <video id="barcodeVideo" playsinline muted></video>
+        <div class="barcode-frame">
+          <div class="barcode-guide">
+            <div class="barcode-scan-line"></div>
+          </div>
+        </div>
+        <div class="barcode-status" id="barcodeStatus">Iniciando câmera...</div>
+      </div>
+
+      <div style="background:var(--az2);border-radius:14px;padding:14px 16px;margin-bottom:14px;display:flex;gap:12px;align-items:flex-start">
+        <span style="font-size:22px;flex-shrink:0">💡</span>
+        <div style="font-size:14px;font-weight:700;color:#1D4ED8;line-height:1.6">
+          Enquadre o <strong>código de barras</strong> da caixa do remédio dentro do guia.<br>
+          Funciona com EAN-13, Code128 e outros formatos.
+        </div>
+      </div>
+
+      <div id="barcodeResultado" style="display:none"></div>
+
+      <button class="btn btn-w" id="btnDigitarCodigo" onclick="App.digitarCodigoManual()">
+        ⌨️ Digitar código manualmente
+      </button>
+    `;
+
+    go('barcode');
+    iniciarScannerBarcode();
+  }
+
+  async function iniciarScannerBarcode() {
+    _barcodeAtivo = true;
+    const status = document.getElementById('barcodeStatus');
+
+    // Carregar ZXing dinamicamente
+    if(!window.ZXingBrowser) {
+      if(status) status.textContent = 'Carregando leitor...';
+      await new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://unpkg.com/@zxing/browser@0.1.4/umd/index.min.js';
+        script.onload = resolve;
+        script.onerror = () => {
+          // Fallback CDN
+          const s2 = document.createElement('script');
+          s2.src = 'https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.4/umd/index.min.js';
+          s2.onload = resolve;
+          s2.onerror = reject;
+          document.head.appendChild(s2);
+        };
+        document.head.appendChild(script);
+      }).catch(() => null);
+    }
+
+    if(!window.ZXingBrowser) {
+      if(status) status.textContent = '❌ Erro ao carregar leitor. Use digitação manual.';
+      return;
+    }
+
+    const video = document.getElementById('barcodeVideo');
+    if(!video || !_barcodeAtivo) return;
+
+    try {
+      // Pedir câmera traseira
+      _barcodeStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+      });
+
+      if(!_barcodeAtivo) {
+        _barcodeStream.getTracks().forEach(t => t.stop());
+        return;
+      }
+
+      video.srcObject = _barcodeStream;
+      await video.play();
+
+      if(status) status.textContent = '🔍 Procurando código de barras...';
+
+      // Iniciar leitura contínua
+      _zxingReader = new ZXingBrowser.BrowserMultiFormatReader();
+
+      const hints = new Map();
+      // Formatos comuns em medicamentos brasileiros
+      hints.set(2, [
+        ZXingBrowser.BarcodeFormat?.EAN_13,
+        ZXingBrowser.BarcodeFormat?.EAN_8,
+        ZXingBrowser.BarcodeFormat?.CODE_128,
+        ZXingBrowser.BarcodeFormat?.CODE_39,
+        ZXingBrowser.BarcodeFormat?.ITF,
+        ZXingBrowser.BarcodeFormat?.DATA_MATRIX,
+      ].filter(Boolean));
+
+      _zxingReader.hints = hints;
+
+      _zxingReader.decodeFromVideoElement(video, (result, err) => {
+        if(!_barcodeAtivo) return;
+        if(result) {
+          const codigo = result.getText();
+          pararCameraBarcode();
+          processarCodigoBarras(codigo);
+        }
+        // err normalmente é NotFoundException (sem código no frame) — ignorar
+      });
+
+    } catch(e) {
+      console.warn('[Barcode]', e);
+      if(status) {
+        if(e.name === 'NotAllowedError') {
+          status.textContent = '❌ Permissão de câmera negada';
+          document.getElementById('barcodeCt')?.insertAdjacentHTML('afterbegin', `
+            <div style="background:var(--vm2);border-radius:14px;padding:14px 16px;margin-bottom:14px">
+              <div style="font-size:14px;font-weight:800;color:#991B1B;margin-bottom:6px">📷 Câmera bloqueada</div>
+              <div style="font-size:13px;color:#991B1B;font-weight:600;line-height:1.5">
+                Para liberar: Configurações do celular → Apps → Chrome → Permissões → Câmera → Permitir
+              </div>
+            </div>
+          `);
+        } else {
+          status.textContent = '❌ Erro na câmera. Use digitação manual.';
+        }
+      }
+    }
+  }
+
+  async function processarCodigoBarras(codigo) {
+    const resultado = document.getElementById('barcodeResultado');
+    const btnDigitar = document.getElementById('btnDigitarCodigo');
+    if(resultado) resultado.style.display = 'block';
+    if(btnDigitar) btnDigitar.style.display = 'none';
+
+    // Feedback imediato
+    if(resultado) resultado.innerHTML = `
+      <div style="background:var(--c7);border-radius:14px;padding:20px;text-align:center;margin-bottom:14px">
+        <div style="font-size:28px;margin-bottom:8px">🔍</div>
+        <div style="font-size:15px;font-weight:800;color:var(--c1)">Código lido!</div>
+        <div style="font-size:18px;font-weight:900;color:var(--g);margin:6px 0;font-family:monospace">${codigo}</div>
+        <div style="font-size:13px;color:var(--c3);font-weight:600">Consultando informações do medicamento...</div>
+      </div>
+    `;
+
+    // Consultar API de medicamentos
+    const info = await consultarMedicamento(codigo);
+    mostrarResultadoBarcode(codigo, info);
+  }
+
+  async function consultarMedicamento(codigo) {
+    // Tentar múltiplas fontes de dados
+    const fontes = [
+      () => consultarOpenFoodFacts(codigo),
+      () => consultarOpenFDA(codigo),
+    ];
+
+    for(const fonte of fontes) {
+      try {
+        const resultado = await fonte();
+        if(resultado) return resultado;
+      } catch(e) { /* tentar próxima */ }
+    }
+    return null;
+  }
+
+  async function consultarOpenFoodFacts(codigo) {
+    // Open Food Facts tem medicamentos OTC brasileiros
+    const resp = await fetch(
+      `https://world.openfoodfacts.org/api/v0/product/${codigo}.json`,
+      { signal: AbortSignal.timeout(8000) }
+    );
+    if(!resp.ok) return null;
+    const data = await resp.json();
+    if(data.status !== 1 || !data.product) return null;
+
+    const p = data.product;
+    return {
+      fonte:        'Open Food Facts',
+      nome:         p.product_name_pt || p.product_name || p.abbreviated_product_name || null,
+      fabricante:   p.brands || null,
+      quantidade:   extrairQuantidade(p.quantity || p.net_weight || ''),
+      imagem:       p.image_front_small_url || p.image_url || null,
+      codigo,
+    };
+  }
+
+  async function consultarOpenFDA(codigo) {
+    // OpenFDA para medicamentos registrados
+    const resp = await fetch(
+      `https://api.fda.gov/drug/ndc.json?search=package_ndc:"${codigo}"&limit=1`,
+      { signal: AbortSignal.timeout(8000) }
+    );
+    if(!resp.ok) return null;
+    const data = await resp.json();
+    if(!data.results?.length) return null;
+    const r = data.results[0];
+    return {
+      fonte:      'FDA NDC',
+      nome:       r.brand_name || r.generic_name || null,
+      fabricante: r.labeler_name || null,
+      quantidade: null,
+      imagem:     null,
+      codigo,
+    };
+  }
+
+  function extrairQuantidade(txt) {
+    if(!txt) return null;
+    const m = txt.match(/(\d+)\s*(comp|cap|mg|ml|g|drg|cp)/i);
+    return m ? m[0] : txt;
+  }
+
+  function mostrarResultadoBarcode(codigo, info) {
+    const resultado = document.getElementById('barcodeResultado');
+    if(!resultado) return;
+
+    // Tentar casar com medicamento já cadastrado
+    const meds = DB.medicamentos.filter(m => m.ativo);
+    let medCasado = null;
+
+    if(_barcodemedId) {
+      // Veio direto do detalhe de um med específico
+      medCasado = meds.find(m => m.id === _barcodemedId);
+    } else if(info?.nome) {
+      // Tentar casar por nome
+      const nomeInfo = info.nome.toLowerCase();
+      medCasado = meds.find(m => {
+        const nomeMed = m.nome.toLowerCase();
+        return nomeInfo.includes(nomeMed) || nomeMed.includes(nomeInfo.split(' ')[0]);
+      });
+    }
+
+    const nomeProduto = info?.nome || 'Produto não identificado';
+    const fabricante  = info?.fonte ? `Fonte: ${info.fonte}` : '';
+
+    let htmlMedSelector = '';
+    if(!medCasado) {
+      // Mostrar seletor de qual med repor
+      htmlMedSelector = `
+        <div class="campo" style="margin-bottom:14px">
+          <label>Para qual remédio é esta caixa?</label>
+          <select id="barcodeSelectMed" style="font-size:16px;padding:14px">
+            <option value="">— Selecione —</option>
+            ${meds.map(m => `<option value="${m.id}">${m.nome} ${m.dose}</option>`).join('')}
+          </select>
+        </div>`;
+    }
+
+    resultado.innerHTML = `
+      <div class="med-result-card">
+        ${info?.imagem ? `<img src="${info.imagem}" style="width:64px;height:64px;object-fit:contain;border-radius:10px;margin-bottom:10px;background:var(--c7);padding:4px" onerror="this.style.display='none'">` : ''}
+        <div class="med-result-nome">${nomeProduto}</div>
+        <div class="med-result-info">
+          ${fabricante ? fabricante + '<br>' : ''}
+          🔢 Código: <span style="font-family:monospace;font-weight:700">${codigo}</span>
+          ${info?.quantidade ? '<br>📦 ' + info.quantidade : ''}
+        </div>
+        ${!info ? `<div style="font-size:13px;color:var(--am3);font-weight:700;margin-top:8px;background:var(--am2);border-radius:8px;padding:8px 10px">⚠️ Produto não encontrado na base de dados.<br>Você ainda pode repor o estoque manualmente abaixo.</div>` : ''}
+      </div>
+
+      ${htmlMedSelector}
+
+      <div class="card cp" style="margin-bottom:14px">
+        <div style="font-size:15px;font-weight:800;color:var(--c1);margin-bottom:14px">
+          📦 ${medCasado ? `Repor estoque de: ${medCasado.nome}` : 'Quantos comprimidos/doses nesta caixa?'}
+        </div>
+        ${medCasado ? `
+        <div style="background:var(--g3);border-radius:12px;padding:10px 14px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:14px;font-weight:700;color:var(--g4)">Estoque atual</span>
+          <span style="font-size:18px;font-weight:900;color:var(--g)">${medCasado.estoque} comp.</span>
+        </div>` : ''}
+        <div class="med-result-qtd">
+          <button onclick="App.ajustarQtdBarcode(-10)" style="background:var(--vm2);color:var(--vm);border:none;border-radius:10px;width:44px;height:44px;font-size:22px;font-weight:900;cursor:pointer;font-family:var(--f)">−</button>
+          <input type="number" id="qtdBarcode" value="30" min="1" max="500"
+            style="flex:1;text-align:center;font-size:28px;font-weight:900;border:2px solid var(--c6);border-radius:12px;padding:12px;font-family:var(--f);color:var(--c1);background:var(--card)">
+          <button onclick="App.ajustarQtdBarcode(10)" style="background:var(--g3);color:var(--g4);border:none;border-radius:10px;width:44px;height:44px;font-size:22px;font-weight:900;cursor:pointer;font-family:var(--f)">+</button>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px" id="qtdRapida">
+          ${[14,20,28,30,60].map(n=>`
+            <button onclick="document.getElementById('qtdBarcode').value=${n};App.calcularDiasBarcode()"
+              style="background:var(--c7);border:2px solid var(--c6);border-radius:10px;padding:8px 14px;font-size:14px;font-weight:800;cursor:pointer;font-family:var(--f);color:var(--c2)">
+              ${n}
+            </button>`).join('')}
+        </div>
+        <div style="text-align:center;font-size:13px;font-weight:700;color:var(--g4);background:var(--g3);border-radius:10px;padding:8px;margin-top:12px" id="diasCalcBarcode">
+          ${medCasado ? `Após repor: ${medCasado.estoque + 30} comp. (~${Math.floor((medCasado.estoque+30)/((medCasado.horarios||[1]).length))} dias)` : ''}
+        </div>
+      </div>
+
+      <button class="btn btn-g" style="font-size:18px;padding:18px"
+        onclick="App.confirmarReposicaoBarcode('${medCasado?.id||''}')">
+        ✅ Confirmar reposição de estoque
+      </button>
+      <button class="btn btn-w" onclick="App.reiniciarScanner()">
+        📷 Escanear outro código
+      </button>
+    `;
+
+    // Listener para atualizar cálculo ao mudar quantidade
+    setTimeout(() => {
+      const inp = document.getElementById('qtdBarcode');
+      if(inp) inp.addEventListener('input', () => calcularDiasBarcode());
+      calcularDiasBarcode(medCasado?.id || '');
+    }, 100);
+  }
+
+  function ajustarQtdBarcode(delta) {
+    const inp = document.getElementById('qtdBarcode');
+    if(!inp) return;
+    inp.value = Math.max(1, (parseInt(inp.value)||0) + delta);
+    calcularDiasBarcode();
+  }
+
+  function calcularDiasBarcode(idOverride) {
+    const el = document.getElementById('diasCalcBarcode');
+    const inp = document.getElementById('qtdBarcode');
+    if(!el || !inp) return;
+
+    const qtd = parseInt(inp.value) || 0;
+    const sel = document.getElementById('barcodeSelectMed');
+    const medId = idOverride || sel?.value || _barcodemedId;
+    const m = medId ? DB.medicamentos.find(m=>m.id===medId) : null;
+
+    if(m && qtd > 0) {
+      const totalNovo = (m.estoque || 0) + qtd;
+      const diasPorDose = (m.horarios||[1]).length;
+      const diasTotal = Math.floor(totalNovo / diasPorDose);
+      el.textContent = `Após repor: ${totalNovo} comp. (~${diasTotal} dia${diasTotal!==1?'s':''})`;
+      el.style.color = 'var(--g4)';
+    } else if(qtd > 0) {
+      el.textContent = `${qtd} comprimidos/doses serão adicionados ao estoque`;
+    } else {
+      el.textContent = 'Informe a quantidade';
+    }
+  }
+
+  function confirmarReposicaoBarcode(medIdParam) {
+    const qtd = parseInt(document.getElementById('qtdBarcode')?.value) || 0;
+    if(qtd <= 0) { toast('⚠️ Informe a quantidade'); return; }
+
+    const sel = document.getElementById('barcodeSelectMed');
+    const medId = medIdParam || sel?.value || _barcodemedId;
+
+    if(!medId) { toast('⚠️ Selecione o medicamento'); return; }
+
+    const meds = DB.medicamentos;
+    const m = meds.find(m => m.id === medId);
+    if(!m) { toast('⚠️ Medicamento não encontrado'); return; }
+
+    const estoqueAnterior = m.estoque || 0;
+    m.estoque = estoqueAnterior + qtd;
+    DB.medicamentos = meds;
+
+    pararCameraBarcode();
+    go('detalhe');
+    renderDetalhe(medId);
+
+    const diasNovo = Math.floor(m.estoque / ((m.horarios||[1]).length));
+    toast(`✅ +${qtd} comp. adicionados! Estoque: ${m.estoque} (~${diasNovo} dias)`);
+  }
+
+  function reiniciarScanner() {
+    const resultado = document.getElementById('barcodeResultado');
+    const btnDigitar = document.getElementById('btnDigitarCodigo');
+    if(resultado) { resultado.style.display = 'none'; resultado.innerHTML = ''; }
+    if(btnDigitar) btnDigitar.style.display = 'flex';
+    iniciarScannerBarcode();
+  }
+
+  function digitarCodigoManual() {
+    abrirModal(`
+      <div class="modal-title">⌨️ Digitar Código de Barras</div>
+      <div class="campo">
+        <label>Código (EAN-13 ou outro)</label>
+        <input type="text" id="codigoManualInput" inputmode="numeric"
+          placeholder="Ex: 7891058019854"
+          style="font-size:20px;font-weight:700;letter-spacing:2px;text-align:center;padding:16px;font-family:monospace">
+      </div>
+      <div style="font-size:13px;color:var(--c3);font-weight:600;margin-bottom:16px;text-align:center;line-height:1.5">
+        O código fica embaixo ou na lateral da caixa do remédio, abaixo das barras verticais.
+      </div>
+      <button class="btn btn-g" onclick="App.processarCodigoManual()">🔍 Consultar</button>
+      <button class="btn btn-w" onclick="App.fecharModal()">Cancelar</button>
+    `);
+  }
+
+  function processarCodigoManual() {
+    const codigo = document.getElementById('codigoManualInput')?.value.trim().replace(/\s/g,'');
+    if(!codigo || codigo.length < 4) { toast('⚠️ Informe um código válido'); return; }
+    fecharModal();
+    pararCameraBarcode();
+    // Mostrar tela de resultado
+    const resultado = document.getElementById('barcodeResultado');
+    const btnDigitar = document.getElementById('btnDigitarCodigo');
+    if(resultado) resultado.style.display = 'block';
+    if(btnDigitar) btnDigitar.style.display = 'none';
+    processarCodigoBarras(codigo);
+  }
+
   function editarEstoque(id) {
+    // Abrir direto no scanner de código de barras
+    _barcodemedId = id;
+    abrirModal(`
+      <div class="modal-title">📦 Repor Estoque</div>
+      <p style="font-size:15px;color:var(--c3);font-weight:600;margin-bottom:20px;line-height:1.6">
+        Como você quer atualizar o estoque?
+      </p>
+      <button class="btn btn-g" style="margin-bottom:10px" onclick="App.fecharModal();App.abrirBarcode('${id}')">
+        📷 Escanear código de barras da caixa
+      </button>
+      <button class="btn btn-w" onclick="App.fecharModal();App.editarEstoqueManual('${id}')">
+        ✏️ Digitar quantidade manualmente
+      </button>
+    `);
+  }
+
+  function editarEstoqueManual(id) {
     const m = DB.medicamentos.find(m=>m.id===id);
     if(!m) return;
     const dosesporDia = (m.horarios||[]).length || 1;
@@ -2539,7 +3058,6 @@ Regras:
       </div>
       <button class="btn btn-g" onclick="App.salvarEstoque('${id}')">💾 Salvar estoque</button>
     `);
-    // Atualizar cálculo em tempo real
     setTimeout(() => {
       const inp = document.getElementById('estoqueInput');
       if(inp) inp.addEventListener('input', function() {
@@ -2549,6 +3067,43 @@ Regras:
         if(el) el.textContent = v>0 ? `Duração estimada: ${dias} dia${dias!==1?'s':''}` : 'Informe a quantidade para calcular';
       });
     }, 100);
+  }
+
+  // abrirBarcode é o nome público — chama diretamente abrirBarcode_fn
+  function abrirBarcode(medId) {
+    _barcodemedId = medId || null;
+    pararCameraBarcode();
+    const back = document.getElementById('barcodeBackBtn');
+    if(back) back.onclick = () => {
+      pararCameraBarcode();
+      if(_barcodemedId) go('detalhe');
+      else go('remedios');
+    };
+    const ct = document.getElementById('barcodeCt');
+    ct.innerHTML = `
+      <div class="barcode-overlay">
+        <video id="barcodeVideo" playsinline muted></video>
+        <div class="barcode-frame">
+          <div class="barcode-guide">
+            <div class="barcode-scan-line"></div>
+          </div>
+        </div>
+        <div class="barcode-status" id="barcodeStatus">Iniciando câmera...</div>
+      </div>
+      <div style="background:var(--az2);border-radius:14px;padding:14px 16px;margin-bottom:14px;display:flex;gap:12px;align-items:flex-start">
+        <span style="font-size:22px;flex-shrink:0">💡</span>
+        <div style="font-size:14px;font-weight:700;color:#1D4ED8;line-height:1.6">
+          Enquadre o <strong>código de barras</strong> da caixa do remédio dentro do guia.<br>
+          Funciona com EAN-13, Code128 e outros formatos.
+        </div>
+      </div>
+      <div id="barcodeResultado" style="display:none"></div>
+      <button class="btn btn-w" id="btnDigitarCodigo" onclick="App.digitarCodigoManual()">
+        ⌨️ Digitar código manualmente
+      </button>
+    `;
+    go('barcode');
+    iniciarScannerBarcode();
   }
 
   function salvarEstoque(id) {
@@ -3320,7 +3875,10 @@ Regras:
     configAlertas, selecionarToque, testarToque, salvarVolume, salvarSilencio,
     ajustarFonte, setFonte, toggleTema,
     verificarAtualizacao, forcarAtualizacao,
-    finalizarBoasVindas, editarEstoque, salvarEstoque,
+    finalizarBoasVindas, editarEstoque, editarEstoqueManual, salvarEstoque,
+    abrirBarcode, pararCameraBarcode, iniciarScannerBarcode,
+    processarCodigoBarras, processarCodigoManual, digitarCodigoManual,
+    ajustarQtdBarcode, calcularDiasBarcode, confirmarReposicaoBarcode, reiniciarScanner,
     fazerBackup, abrirRestaurarBackup, processarBackup, confirmarRestauracao,
     confirmarLimpar, limparTudo, exportarPDF,
     renderDetalhe, renderConfig, onFreqChange, adicionarHora, removerHora,
