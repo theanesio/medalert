@@ -1095,29 +1095,42 @@ input[type=range]::-webkit-slider-thumb{
 ═══════════════════════════════════════════════════════════════════ */
 
 /* ── CONSTANTES ──────────────────────────────────────────────────── */
-const APP_VERSION  = '1.7.0';
+const APP_VERSION  = '1.8.1';
 
-/* ── CONFIGURAÇÃO SUPABASE ─────────────────────────────────────
-   ATENÇÃO: Substitua pelos valores do seu projeto Supabase.
-   Crie gratuitamente em: https://supabase.com
-   Vá em: Settings → API → Project URL e anon key
-────────────────────────────────────────────────────────────── */
-const SUPA_URL = localStorage.getItem('med_supa_url') || '';
-const SUPA_KEY = localStorage.getItem('med_supa_key') || '';
+/* ══════════════════════════════════════════════════════════════
+   CONFIGURAÇÃO DO SUPABASE — PREENCHIDA PELO DONO DO APP
+   ══════════════════════════════════════════════════════════════
+   Estas credenciais são PÚBLICAS (anon key) — é seguro deixar
+   no código. A segurança dos dados é garantida pelas políticas
+   RLS no banco de dados (cada usuário só vê os seus dados).
 
-// Instância do cliente Supabase (null até configurar)
+   ► COMO CONFIGURAR:
+     1. Crie seu projeto em https://supabase.com (gratuito)
+     2. Vá em Settings → API
+     3. Copie "Project URL" e "anon public" key
+     4. Cole abaixo e faça o upload no GitHub
+
+   ► Os usuários finais NÃO precisam saber do Supabase.
+     Eles só fazem o cadastro simples dentro do MedAlert.
+   ══════════════════════════════════════════════════════════════ */
+const SUPA_URL = 'COLE_SUA_PROJECT_URL_AQUI';   // Ex: https://xyzxyz.supabase.co
+const SUPA_KEY = 'COLE_SUA_ANON_KEY_AQUI';      // Ex: eyJhbGci...
+
+/* ── CLIENTE SUPABASE (inicializado automaticamente) ─────────── */
 let _supabase = null;
 function getSupa() {
   if(_supabase) return _supabase;
-  const url = localStorage.getItem('med_supa_url') || SUPA_URL;
-  const key = localStorage.getItem('med_supa_key') || SUPA_KEY;
-  if(!url || !key || !window.supabase) return null;
+  // Usar credenciais do código (fixas pelo dono do app)
+  const url = SUPA_URL;
+  const key = SUPA_KEY;
+  // Se não foram configuradas ainda, operar em modo local
+  if(!url || !key || url.includes('COLE_SUA') || !window.supabase) return null;
   try {
     _supabase = window.supabase.createClient(url, key, {
       auth: {
-        persistSession: true,
-        storageKey: 'med_auth_session',
-        storage: window.localStorage,
+        persistSession:   true,
+        storageKey:       'med_auth_session',
+        storage:          window.localStorage,
         autoRefreshToken: true,
       }
     });
@@ -1337,9 +1350,30 @@ const App = (() => {
       const n = new Date();
       document.getElementById('clockTxt').textContent =
         String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0');
+      // Atualizar badges de countdown na home sem re-renderizar tudo
+      atualizarCountdowns();
     }
     tick();
-    setInterval(tick, 10000);
+    setInterval(tick, 60000); // a cada minuto
+  }
+
+  // Atualiza apenas os textos de tempo (pendentes) sem re-renderizar os cards
+  function atualizarCountdowns() {
+    if(telaAtual !== 'home') return;
+    document.querySelectorAll('[data-horario]').forEach(btn => {
+      const h = btn.dataset.horario;
+      if(!h) return;
+      const diff = minutosDeHoje(h) - minutosDeHoje(horaAtual());
+      const badge = btn.closest('.mc')?.querySelector('.badge.baz');
+      if(!badge) return;
+      if(diff > 0) {
+        const hh = Math.floor(diff/60), mm = diff%60;
+        badge.textContent = '⏰ ' + (hh>0 ? `Faltam ${hh}h${mm>0?mm+'min':''}` : `Faltam ${mm} min`);
+      } else if(diff > -60) {
+        badge.className = 'badge bam';
+        badge.textContent = '⚠️ Atrasado';
+      }
+    });
   }
 
   /* ── ALERTAS AUTOMÁTICOS ───────────────────────────────────── */
@@ -2121,6 +2155,10 @@ const App = (() => {
           <div class="cfg-l"><span class="cfg-ic">✏️</span><div><div class="cfg-h">Editar nome</div><div class="cfg-p">${cfg.nome || 'Não informado'}</div></div></div>
           <span class="cfg-v">›</span>
         </div>
+        <div class="cfg-row" onclick="App.alterarSenha()">
+          <div class="cfg-l"><span class="cfg-ic">🔑</span><div><div class="cfg-h">Alterar senha</div><div class="cfg-p">Alterar a senha da sua conta</div></div></div>
+          <span class="cfg-v">›</span>
+        </div>
         <div class="cfg-row" onclick="App.editarCuidador()">
           <div class="cfg-l"><span class="cfg-ic">📞</span><div><div class="cfg-h">Contato do cuidador</div><div class="cfg-p">${cfg.cuidador||'Não informado'}</div></div></div>
           <span class="cfg-v">›</span>
@@ -2262,18 +2300,9 @@ const App = (() => {
         </div>
       </div>
 
-      <div class="st">⚙️ Integração</div>
-      <div class="cfg-sec">
-        <div class="cfg-row" onclick="App.abrirConfigSupabase()">
-          <div class="cfg-l"><span class="cfg-ic">🔗</span><div>
-            <div class="cfg-h">Configurar Supabase</div>
-            <div class="cfg-p">${localStorage.getItem('med_supa_url') ? '✅ Configurado — sincronização ativa' : 'Não configurado — modo local'}</div>
-          </div></div>
-          <span class="cfg-v">›</span>
-        </div>
+      <div style="text-align:center;font-size:12px;color:var(--c4);padding:16px 0;font-weight:600">
+        MedAlert ${APP_VERSION} · ${getSupa() ? '☁️ Sincronização ativa' : '📱 Modo local'}<br>Feito com ❤️ para sua saúde
       </div>
-
-      <div style="text-align:center;font-size:12px;color:var(--c4);padding:16px 0;font-weight:600">MedAlert ${APP_VERSION} · Feito com ❤️ para sua saúde</div>
     `;
   }
 
@@ -2772,36 +2801,10 @@ Regras:
     renderDetalhe(id);
   }
 
+  // finalizarBoasVindas: mantido para compatibilidade, fluxo agora é via auth
   function finalizarBoasVindas() {
-    const nome = document.getElementById('bvNome')?.value.trim();
-    if(!nome) { toast('⚠️ Por favor, informe seu nome'); return; }
-
-    // Salvar nome
-    const cfg = DB.config;
-    cfg.nome = nome;
-    DB.config = cfg;
-    localStorage.setItem('med_usuario_real', '1');
-    localStorage.setItem('med_boasvindas_ok', '1');
-
-    // Pedir permissão de notificação
-    if('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission().then(p => {
-        if(p === 'granted') {
-          toast('🔔 Perfeito! Você receberá os alarmes dos remédios.');
-          agendarTodasNotificacoes();
-        }
-      });
-    }
-
-    // Mostrar navbar e ir para home
-    document.getElementById('nav')?.style.removeProperty('display');
-    document.getElementById('s-boasvindas')?.classList.remove('on');
-    document.getElementById('nomeUsuario').textContent = nome;
-    telaAtual = 'boasvindas';
-    history.replaceState({ tela: 'home' }, '', '#home');
-    navStack = ['home'];
+    // Redirecionado para o sistema de auth — esta função não é mais usada
     go('home');
-    toast('Olá, ' + nome + '! Adicione seus remédios tocando no + abaixo.');
   }
 
   /* ═══════════════════════════════════════════════════════════
@@ -3399,23 +3402,78 @@ Regras:
   }
 
   function editarNome() {
+    const nomeAtual = DB.config.nome || _usuarioAtual?.nome || '';
     abrirModal(`
-      <div class="modal-title">👤 Seu Nome</div>
-      <div class="campo"><label>Nome</label><input type="text" id="cfgNomeInput" value="${DB.config.nome||''}" placeholder="Seu nome"></div>
+      <div class="modal-title">👤 Editar Nome</div>
+      <div class="campo">
+        <label>Seu nome</label>
+        <input type="text" id="cfgNomeInput" value="${nomeAtual}" placeholder="Seu nome completo">
+      </div>
       <button class="btn btn-g" onclick="App.salvarNome()">💾 Salvar</button>
     `);
   }
 
-  function salvarNome() {
-    const v = document.getElementById('cfgNomeInput').value.trim();
+  async function salvarNome() {
+    const v = document.getElementById('cfgNomeInput')?.value.trim();
     if(!v) return;
     const cfg = DB.config;
     cfg.nome = v;
     DB.config = cfg;
+    if(_usuarioAtual) _usuarioAtual.nome = v;
+    // Atualizar no Supabase se conectado
+    const supa = getSupa();
+    if(supa) {
+      try { await supa.auth.updateUser({ data: { nome: v, full_name: v } }); }
+      catch(e) { console.warn('[Auth] update nome:', e); }
+    }
     fecharModal();
-    toast('Nome atualizado!');
+    toast('✅ Nome atualizado!');
     document.getElementById('nomeUsuario').textContent = v;
     renderConfig();
+  }
+
+  function alterarSenha() {
+    const supa = getSupa();
+    if(!supa) {
+      abrirModal(`<div class="modal-title">🔑 Alterar Senha</div><p style="font-size:15px;color:var(--c3);font-weight:600;margin-bottom:20px;line-height:1.5">Para alterar a senha você precisa ter acesso à internet e a sincronização em nuvem precisa estar ativa.</p><button class="btn btn-g" onclick="App.fecharModal()">Entendido</button>`);
+      return;
+    }
+    abrirModal(`
+      <div class="modal-title">🔑 Alterar Senha</div>
+      <div class="campo">
+        <label>Nova senha</label>
+        <div style="position:relative">
+          <input type="password" id="novaSenhaInput" placeholder="Mínimo 8 caracteres"
+            style="padding-right:52px">
+          <button onclick="App.toggleSenhaVis('novaSenhaInput')"
+            style="position:absolute;right:14px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:20px;cursor:pointer;padding:0;color:var(--c3)">👁️</button>
+        </div>
+      </div>
+      <div class="campo">
+        <label>Confirmar nova senha</label>
+        <input type="password" id="novaSenha2Input" placeholder="Repita a nova senha">
+      </div>
+      <button class="btn btn-g" onclick="App.salvarNovaSenha()">🔑 Alterar senha</button>
+      <div id="senhaErro" style="display:none;background:var(--vm2);border-radius:13px;padding:12px 14px;margin-top:10px;font-size:14px;font-weight:700;color:#991B1B;text-align:center"></div>
+    `);
+  }
+
+  async function salvarNovaSenha() {
+    const s1 = document.getElementById('novaSenhaInput')?.value;
+    const s2 = document.getElementById('novaSenha2Input')?.value;
+    const erro = document.getElementById('senhaErro');
+    if(!s1 || s1.length < 8) { mostrarErroAuth(erro,'A senha deve ter pelo menos 8 caracteres'); return; }
+    if(s1 !== s2)             { mostrarErroAuth(erro,'As senhas não coincidem'); return; }
+    const supa = getSupa();
+    if(!supa) return;
+    try {
+      const { error } = await supa.auth.updateUser({ password: s1 });
+      if(error) throw error;
+      fecharModal();
+      toast('✅ Senha alterada com sucesso!');
+    } catch(e) {
+      mostrarErroAuth(erro, traduzirErroAuth(e.message));
+    }
   }
 
   function editarCuidador() {
@@ -4085,18 +4143,30 @@ Regras:
   ═══════════════════════════════════════════════════════════ */
 
   function mostrarTelaAuth() {
-    // Esconder navbar e telas do app
-    document.getElementById('nav')?.style.setProperty('display','none');
+    // Limpar TODAS as telas e esconder navbar
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('on'));
+    document.getElementById('nav')?.style.setProperty('display','none');
+    // Limpar highlights do navbar
+    ['home','remedios','historico','config'].forEach(t => {
+      document.getElementById('nb-'+t)?.classList.remove('on');
+    });
+    // Mostrar login
     document.getElementById('s-login')?.classList.add('on');
     telaAtual = 'login';
+    navStack  = ['login'];
     history.replaceState({ tela: 'login' }, '', '#login');
   }
 
   function entrarNoApp(usuario) {
     _usuarioAtual = usuario;
+
+    // Limpar TODAS as telas (garante que nenhuma fica visível simultaneamente)
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('on'));
+
     // Mostrar navbar
-    document.getElementById('nav')?.style.removeProperty('display');
+    const nav = document.getElementById('nav');
+    if(nav) nav.style.removeProperty('display');
+
     // Aplicar configurações do usuário
     const cfg = DB.config;
     if(cfg.tema === 'Escuro') aplicarTema('Escuro');
@@ -4105,10 +4175,36 @@ Regras:
     }
     const nomeEl = document.getElementById('nomeUsuario');
     if(nomeEl) nomeEl.textContent = cfg.nome || usuario.nome || usuario.email?.split('@')[0] || 'Usuário';
-    // Ir para home
+
+    // Definir tela atual como login para o go() funcionar
     telaAtual = 'login';
-    go('home');
+    navStack  = ['home'];
+
+    // Mostrar home diretamente (sem passar pelo go para evitar pushState duplo)
+    const homeEl = document.getElementById('s-home');
+    if(homeEl) { homeEl.classList.add('on'); homeEl.scrollTop = 0; }
+    telaAtual = 'home';
+    history.replaceState({ tela: 'home' }, '', '#home');
+
+    // Atualizar navbar
+    ['home','remedios','historico','config'].forEach(t => {
+      document.getElementById('nb-'+t)?.classList.toggle('on', t === 'home');
+    });
+
+    // Renderizar home
+    renderHome();
     iniciarAlertas();
+
+    // Sincronizar com nuvem se Supabase configurado
+    const supa = getSupa();
+    if(supa) {
+      setTimeout(async () => {
+        await sincronizarComNuvem();
+        if(telaAtual === 'home') renderHome(); // re-renderizar com dados da nuvem
+        toast('☁️ Dados sincronizados com a nuvem');
+      }, 1500);
+    }
+
     // Notificações
     if('Notification' in window && Notification.permission === 'default') {
       setTimeout(() => Notification.requestPermission().then(p => {
@@ -4217,7 +4313,7 @@ Regras:
     if(!email) { toast('⚠️ Informe seu e-mail'); return; }
 
     const supa = getSupa();
-    if(!supa) { toast('Configure o Supabase primeiro'); return; }
+    if(!supa) { toast('⚠️ Função disponível quando conectado à internet'); return; }
 
     try {
       const { error } = await supa.auth.resetPasswordForEmail(email, {
@@ -4403,55 +4499,177 @@ Regras:
     }
   }
 
+  // ── Sincronização Supabase ───────────────────────────────────
+
+  async function sincronizarComNuvem() {
+    const supa = getSupa();
+    if(!supa || !_usuarioAtual) return;
+
+    try {
+      // Carregar dados da nuvem
+      const { data, error } = await supa
+        .from('med_dados')
+        .select('dados')
+        .eq('user_id', _usuarioAtual.id)
+        .single();
+
+      if(error && error.code !== 'PGRST116') {
+        // PGRST116 = "not found" (usuário novo)
+        console.warn('[Sync] Erro ao carregar:', error.message);
+        return;
+      }
+
+      if(data?.dados) {
+        const nuvem = data.dados;
+        const local = {
+          medicamentos: DB.medicamentos,
+          registros:    DB.registros,
+          config:       DB.config,
+        };
+
+        // Mesclar: nuvem tem prioridade para medicamentos,
+        // local tem prioridade para registros de hoje
+        const hoje = hojeStr();
+        const regsHoje = local.registros.filter(r => r.data === hoje);
+        const regsNuvemSemHoje = (nuvem.registros||[]).filter(r => r.data !== hoje);
+
+        // Se a nuvem tem dados mais recentes em algum medicamento, usar nuvem
+        const medsNuvem = nuvem.medicamentos || [];
+        const medsLocal = local.medicamentos;
+
+        // Merge inteligente: unir pelos IDs, nuvem prevalece em conflito
+        const mergedMeds = [...medsNuvem];
+        medsLocal.forEach(ml => {
+          if(!mergedMeds.find(mn => mn.id === ml.id)) mergedMeds.push(ml);
+        });
+
+        DB.medicamentos = mergedMeds;
+        DB.registros    = [...regsNuvemSemHoje, ...regsHoje];
+        if(nuvem.config && nuvem.config.nome) {
+          const cfgAtual = DB.config;
+          DB.config = Object.assign({}, nuvem.config, {
+            // Preservar configurações locais de som/visual
+            toque:          cfgAtual.toque          || nuvem.config.toque,
+            volume:         cfgAtual.volume         !== undefined ? cfgAtual.volume : nuvem.config.volume,
+            silencioInicio: cfgAtual.silencioInicio || nuvem.config.silencioInicio,
+            silencioFim:    cfgAtual.silencioFim    || nuvem.config.silencioFim,
+          });
+        }
+        console.log('[Sync] Dados carregados da nuvem:', mergedMeds.length, 'remédios');
+      }
+
+      // Salvar estado atual na nuvem
+      await salvarNaNuvem();
+    } catch(e) {
+      console.warn('[Sync] Erro geral:', e.message);
+    }
+  }
+
+  async function salvarNaNuvem() {
+    const supa = getSupa();
+    if(!supa || !_usuarioAtual) return;
+
+    const dados = {
+      medicamentos: DB.medicamentos,
+      registros:    DB.registros.slice(-500), // últimos 500 registros
+      config:       DB.config,
+      sincronizado: new Date().toISOString(),
+    };
+
+    try {
+      const { error } = await supa
+        .from('med_dados')
+        .upsert({
+          user_id:    _usuarioAtual.id,
+          dados:      dados,
+          atualizado: new Date().toISOString(),
+        }, { onConflict: 'user_id' });
+
+      if(error) console.warn('[Sync] Erro ao salvar:', error.message);
+      else console.log('[Sync] Dados salvos na nuvem');
+    } catch(e) {
+      console.warn('[Sync] Erro ao salvar:', e.message);
+    }
+  }
+
+  // Hook: salvar na nuvem após cada operação importante
+  const _salvarMedOrig = DB.salvarMed.bind(DB);
+  DB.salvarMed = function(med) {
+    _salvarMedOrig(med);
+    setTimeout(salvarNaNuvem, 1000); // salvar com delay para não travar UI
+  };
+
   // ── Configurar Supabase ──────────────────────────────────────
+  // abrirConfigSupabase: função para USO DO DONO DO APP apenas
+  // Não aparece na interface do usuário comum
   function abrirConfigSupabase() {
-    const urlAtual = localStorage.getItem('med_supa_url') || '';
-    const keyAtual = localStorage.getItem('med_supa_key') || '';
+    const sql = `create table if not exists med_dados (
+  id         uuid default gen_random_uuid() primary key,
+  user_id    uuid references auth.users not null unique,
+  dados      jsonb not null default '{}',
+  atualizado timestamptz default now()
+);
+alter table med_dados enable row level security;
+create policy "Usuário acessa só seus dados"
+  on med_dados for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);`;
+
+    const conectado = getSupa() !== null;
     abrirModal(`
-      <div class="modal-title">⚙️ Configurar Supabase</div>
-      <div style="background:var(--az2);border-radius:13px;padding:13px 15px;margin-bottom:16px;font-size:13px;font-weight:700;color:#1D4ED8;line-height:1.6">
-        📖 Crie seu projeto gratuito em <strong>supabase.com</strong><br>
-        Depois vá em: <strong>Settings → API</strong> e copie a URL e a anon key.
+      <div class="modal-title">☁️ Status da Nuvem</div>
+
+      <div style="background:${conectado?'var(--g3)':'var(--am2)'};border-radius:13px;padding:14px 16px;margin-bottom:16px;display:flex;align-items:center;gap:12px">
+        <span style="font-size:24px">${conectado?'✅':'⚠️'}</span>
+        <div>
+          <div style="font-size:15px;font-weight:800;color:${conectado?'var(--g4)':'var(--am3)'}">
+            ${conectado?'Sincronização ativa':'Modo local (sem nuvem)'}
+          </div>
+          <div style="font-size:13px;color:${conectado?'var(--g4)':'var(--am3)'};margin-top:2px;font-weight:600">
+            ${conectado?'Dados sincronizados entre dispositivos':'Para ativar, edite o index.html'}
+          </div>
+        </div>
       </div>
-      <div class="campo">
-        <label>Project URL</label>
-        <input type="text" id="supaUrlInput" value="${urlAtual}" placeholder="https://xxxx.supabase.co" style="font-size:14px;font-family:monospace">
+
+      <div style="background:var(--c7);border-radius:13px;padding:13px 14px;margin-bottom:14px">
+        <div style="font-size:13px;font-weight:800;color:var(--c2);margin-bottom:8px">
+          📋 SQL para criar a tabela no Supabase:
+        </div>
+        <div style="background:#1e1e2e;border-radius:10px;padding:12px;font-size:11px;font-family:monospace;color:#cdd6f4;line-height:1.8;overflow-x:auto;white-space:pre">${sql}</div>
+        <button class="btn btn-w" style="margin-top:10px;font-size:13px;padding:10px"
+          onclick="navigator.clipboard?.writeText(atob('${btoa(sql)}')).then(()=>App.toast('✅ SQL copiado!'))">
+          📋 Copiar SQL
+        </button>
       </div>
-      <div class="campo">
-        <label>Anon Key</label>
-        <input type="password" id="supaKeyInput" value="${keyAtual}" placeholder="eyJhbGciOiJIUzI1NiIs..." style="font-size:13px;font-family:monospace">
+
+      <div style="background:var(--az2);border-radius:13px;padding:13px 14px;font-size:13px;color:#1D4ED8;font-weight:600;line-height:1.6">
+        ℹ️ Para configurar a nuvem, edite as linhas <strong>SUPA_URL</strong> e <strong>SUPA_KEY</strong> no arquivo <code>index.html</code> antes de fazer o upload no GitHub.
       </div>
-      <button class="btn btn-g" onclick="App.salvarConfigSupabase()">💾 Salvar e conectar</button>
-      <div style="margin-top:12px;background:var(--g3);border-radius:12px;padding:12px 14px;font-size:13px;font-weight:600;color:var(--g4);line-height:1.6">
-        💡 <strong>Sem Supabase?</strong> O app funciona em modo local — os dados ficam só neste celular, sem sincronização entre dispositivos.
-      </div>
+      <button class="btn btn-w" style="margin-top:14px" onclick="App.fecharModal()">Fechar</button>
     `);
   }
 
   function salvarConfigSupabase() {
-    const url = document.getElementById('supaUrlInput')?.value.trim();
-    const key = document.getElementById('supaKeyInput')?.value.trim();
-    if(!url || !key) { toast('⚠️ Preencha URL e Key'); return; }
-    localStorage.setItem('med_supa_url', url);
-    localStorage.setItem('med_supa_key', key);
-    _supabase = null; // forçar recriação
     fecharModal();
-    toast('✅ Supabase configurado! Faça login ou cadastro.');
-    renderConfig();
+    toast('ℹ️ Configure editando o index.html diretamente');
   }
 
   // ── Init ─────────────────────────────────────────────────────
   function init() {
     iniciarRelogio();
-    // Ocultar nav por padrão (aparece após login)
-    document.getElementById('nav')?.style.setProperty('display','none');
-    document.querySelectorAll('.screen').forEach(s => s.classList.remove('on'));
 
-    // Botão Voltar do Android
+    // PASSO 1: Limpar TUDO e mostrar login imediatamente (sem piscar)
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('on'));
+    document.getElementById('nav')?.style.setProperty('display','none');
+    document.getElementById('s-login')?.classList.add('on');
+    telaAtual = 'login';
+    navStack  = ['login'];
     history.replaceState({ tela: 'login' }, '', '#login');
+
+    // PASSO 2: Botão Voltar do Android
     window.addEventListener('popstate', voltarTela);
 
-    // Reagendar alarmes ao voltar do background
+    // PASSO 3: Reagendar alarmes ao voltar do background
     document.addEventListener('visibilitychange', () => {
       if(!document.hidden && _usuarioAtual) {
         setTimeout(agendarTodasNotificacoes, 500);
@@ -4460,7 +4678,8 @@ Regras:
       }
     });
 
-    // Verificar sessão existente (Supabase ou local)
+    // PASSO 4: Verificar sessão em background (sem travar a UI)
+    //          Se encontrar sessão válida, redireciona automaticamente
     restaurarSessao();
   }
 
@@ -4503,8 +4722,10 @@ Regras:
     toggleSenhaVis, verTermos, verPrivacidade,
     excluirMinhaConta, confirmarExcluirConta,
     abrirConfigSupabase, salvarConfigSupabase,
-    // Config
-    editarNome, salvarNome, editarCuidador, salvarCuidador,
+    sincronizarComNuvem, salvarNaNuvem,
+    // Config / Perfil
+    editarNome, salvarNome, alterarSenha, salvarNovaSenha,
+    editarCuidador, salvarCuidador,
     editarApiKey, salvarApiKey, testarApiKey, toggleVerChave, apagarApiKey,
     configAlertas, selecionarToque, testarToque, salvarVolume, salvarSilencio,
     ajustarFonte, setFonte, toggleTema,
