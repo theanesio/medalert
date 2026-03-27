@@ -1,12 +1,12 @@
-/* MedAlert — Service Worker v16
-   FORÇAR ATUALIZAÇÃO COMPLETA — limpa todos os caches anteriores */
-const CACHE   = 'medalert-v25';
-const VERSION = '2.1.0';
+/* MedAlert — Service Worker v27
+   FORCADR ATUALIZACAO COMPLETA — limpa todos os caches anteriores */
+const CACHE   = 'medalert-v27';
+const VERSION = '2.1.1';
 const FILES   = ['./', './index.html', './manifest.json',
                  './icons/icon-192.png', './icons/icon-512.png'];
 
 self.addEventListener('install', e => {
-  console.log('[SW] v16 instalando — limpeza total');
+  console.log('[SW] v27 instalando — limpeza total');
   // skipWaiting imediato para substituir qualquer SW antigo
   self.skipWaiting();
   e.waitUntil(
@@ -15,9 +15,9 @@ self.addEventListener('install', e => {
 });
 
 self.addEventListener('activate', e => {
-  console.log('[SW] v16 ativando');
+  console.log('[SW] v27 ativando');
   e.waitUntil(
-    // Deletar TODOS os caches antigos sem exceção
+    // Deletar TODOS os caches antigos sem excecao
     caches.keys()
       .then(keys => Promise.all(keys.map(k => {
         console.log('[SW] Deletando cache:', k);
