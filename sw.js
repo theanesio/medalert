@@ -1,12 +1,12 @@
-/* MedAlert — Service Worker v28
+/* MedAlert — Service Worker v29
    FORCADR ATUALIZACAO COMPLETA — limpa todos os caches anteriores */
-const CACHE   = 'medalert-v28';
-const VERSION = '2.1.2';
+const CACHE   = 'medalert-v29';
+const VERSION = '2.1.3';
 const FILES   = ['./', './index.html', './manifest.json',
                  './icons/icon-192.png', './icons/icon-512.png'];
 
 self.addEventListener('install', e => {
-  console.log('[SW] v28 instalando — limpeza total');
+  console.log('[SW] v29 instalando — limpeza total');
   // skipWaiting imediato para substituir qualquer SW antigo
   self.skipWaiting();
   e.waitUntil(
@@ -15,7 +15,7 @@ self.addEventListener('install', e => {
 });
 
 self.addEventListener('activate', e => {
-  console.log('[SW] v28 ativando');
+  console.log('[SW] v29 ativando');
   e.waitUntil(
     // Deletar TODOS os caches antigos sem excecao
     caches.keys()

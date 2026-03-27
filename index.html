@@ -1386,7 +1386,7 @@ const DB = {
   },
   registrarToma(medId, horario, status, horarioReal=null) {
     const list = this.registros;
-    const hoje = new Date().toISOString().split('T')[0];
+    const hoje = hojeStr();
     const ex = list.findIndex(r=>r.medId===medId && r.horario===horario && r.data===hoje);
     const reg = { id: uid(), medId, data: hoje, horario, status, horarioReal: horarioReal||new Date().toTimeString().slice(0,5) };
     if(ex>=0) list[ex]=reg; else list.push(reg);
@@ -1400,7 +1400,7 @@ const DB = {
     }
   },
   desfazerToma(medId, horario) {
-    const hoje = new Date().toISOString().split('T')[0];
+    const hoje = hojeStr();
     const list  = this.registros;
     const idx   = list.findIndex(r=>r.medId===medId && r.horario===horario && r.data===hoje && r.status==='tomado');
     if(idx < 0) return;
@@ -1414,7 +1414,7 @@ const DB = {
     return this.registros.filter(r=>r.data===data);
   },
   getStatusTomaHoje(medId, horario) {
-    const hoje = new Date().toISOString().split('T')[0];
+    const hoje = hojeStr();
     const reg = this.registros.find(r=>r.medId===medId && r.horario===horario && r.data===hoje);
     return reg ? reg.status : null;
   }
@@ -1423,7 +1423,10 @@ const DB = {
 /* ── UTILITÁRIOS ─────────────────────────────────────────────────── */
 function uid() { return Date.now().toString(36)+Math.random().toString(36).slice(2) }
 
-function hojeStr() { return new Date().toISOString().split('T')[0] }
+function hojeStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
 
 function horaAtual() { return new Date().toTimeString().slice(0,5) }
 
