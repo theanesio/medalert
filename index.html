@@ -181,6 +181,13 @@ html,body{height:100%;overflow:hidden;background:var(--g);font-family:var(--f);-
 .bc-a{background:var(--am);color:#fff}
 .bc-ok{background:var(--g3);color:var(--g4);pointer-events:none}
 .bc-off{background:var(--c7);color:var(--c5);pointer-events:none}
+.bc-desfazer{
+  display:block;width:100%;margin-top:6px;padding:8px;
+  border:1.5px solid var(--c5);border-radius:10px;
+  background:transparent;font-size:13px;font-weight:700;
+  color:var(--c3);cursor:pointer;font-family:var(--f);
+}
+.bc-desfazer:active{background:var(--c7)}
 
 /* ═══════════════════════════════════════════════
    ITEM REMÉDIO (LISTA)
@@ -1392,6 +1399,17 @@ const DB = {
       this.medicamentos = meds;
     }
   },
+  desfazerToma(medId, horario) {
+    const hoje = new Date().toISOString().split('T')[0];
+    const list  = this.registros;
+    const idx   = list.findIndex(r=>r.medId===medId && r.horario===horario && r.data===hoje && r.status==='tomado');
+    if(idx < 0) return;
+    list.splice(idx, 1);
+    this.registros = list;
+    const meds = this.medicamentos;
+    const m = meds.find(m=>m.id===medId);
+    if(m) { m.estoque = (m.estoque||0) + 1; this.medicamentos = meds; }
+  },
   getRegistrosDia(data) {
     return this.registros.filter(r=>r.data===data);
   },
@@ -1962,6 +1980,7 @@ const App = (() => {
           <span>${badgeHtml}</span>
         </div>
         <button class="${btnClass}" data-id="${med.id}" data-horario="${horario}">${btnTxt}</button>
+        ${status==='tomado' ? `<button class="bc-desfazer" data-id="${med.id}" data-horario="${horario}">↩️ Desfazer</button>` : ''}
       `;
 
       // Click no card → notificação
@@ -2002,6 +2021,16 @@ const App = (() => {
           setTimeout(renderHome, 800);
         });
       }
+
+      // Click no botão desfazer
+      const btnDesfazer = div.querySelector('.bc-desfazer');
+      if(btnDesfazer) {
+        btnDesfazer.addEventListener('click', e=>{
+          e.stopPropagation();
+          abrirModalDesfazer(med.id, med.nome, horario);
+        });
+      }
+
       return div;
     }
 
@@ -3661,6 +3690,25 @@ Regras:
   }
 
   /* ── MODAL ──────────────────────────────────────────────────── */
+  function abrirModalDesfazer(medId, nomeMed, horario) {
+    abrirModal(`
+      <div class="modal-title">↩️ Desfazer toma?</div>
+      <p style="color:var(--c2);font-size:15px;margin-bottom:20px">
+        Isso vai cancelar a confirmação de <strong>${nomeMed}</strong>
+        no horário das <strong>${horario}</strong> e devolver 1 comprimido ao estoque.
+      </p>
+      <button class="btn btn-vm" onclick="App.confirmarDesfazer('${medId}','${horario}')">↩️ Sim, desfazer</button>
+      <button class="btn" style="margin-top:10px" onclick="App.fecharModal()">Cancelar</button>
+    `);
+  }
+
+  function confirmarDesfazer(medId, horario) {
+    DB.desfazerToma(medId, horario);
+    document.getElementById('modal').classList.remove('on');
+    toast('↩️ Toma desfeita. Estoque restaurado.');
+    renderHome();
+  }
+
   function abrirModal(html) {
     document.getElementById('modalBody').innerHTML = html;
     document.getElementById('modal').classList.add('on');
@@ -5842,7 +5890,7 @@ create policy "Usuário acessa só seus dados"
   return {
     go, voltarTela, irCamera, irFormManual, salvarForm, confirmarExcluir, excluirMed,
     onFotoSelecionada, simularReceita, salvarResultadoIA, renderIAResultado,
-    confirmarNotif, fecharNotif, abrirModal, fecharModal, toast,
+    confirmarNotif, fecharNotif, confirmarDesfazer, abrirModal, fecharModal, toast,
     agendarTodasNotificacoes,
     calMudar, toggleCfg, togglePausar,
     // Auth
